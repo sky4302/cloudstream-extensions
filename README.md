@@ -1,19 +1,49 @@
 # CloudStream Extensions: Indo-Malay Streaming Suite
 
-Koleksi ekstensi / plugin untuk aplikasi **[CloudStream 3](https://github.com/recloudstream/cloudstream)** yang menargetkan situs streaming film, serial drama, dan anime berbahasa Indonesia dan Melayu.
+A collection of extensions/plugins for the **[CloudStream 3](https://github.com/recloudstream/cloudstream)** application targeting popular Indonesian and Malay movie, TV series, and anime streaming websites.
 
 ---
 
 ## 📺 Supported Providers & Target Websites
 
-| Provider | Target Website | Tipe Konten | Bahasa | Fitur Utama |
+| Provider | Target Website | Media Types | Language | Key Features |
 | :--- | :--- | :--- | :--- | :--- |
-| **Idlix** | `https://z2.idlixku.com/movie` | Film & Serial TV | Indonesia (`id`) | API-driven catalog, multi-musim, episode resolver, stream gate/claim session resolver, m3u8 direct streams |
-| **PencuriMovie** | `https://ww44.pencurimovie.baby/` | Film & Siri TV | Melayu (`ms`) | MovieMo WordPress engine, pagination kategori (movies, series, rating, country), iframe resolver |
-| **PencuriMovie Sub Malay** | `https://pencurimoviesubmalay26.site/` | Film & Drama Melayu | Melayu (`ms`) | ZetaFlix engine, parsing musim & episod, AJAX player option resolver (`zeta_player_ajax`), Abyss/RPMPlay/P2PStream extractor |
-| **Kuramanime** | `https://m2.kuramanime.ing/` | Anime | Indonesia (`id`) | Katalog tayang/selesai/movie, episode pagination, KuramaDrive auth token token generator, PixelDrain downloader |
-| **Kuronime** | `https://kuronime.sbs/` | Anime, Movie, OVA | Indonesia (`id`) | New episode feeds, anime detail slug parser, multi-server iframe extraction, KrakenFiles & PixelDrain download link |
-| **NontonAnimeID** | `https://s13.nontonanimeid.boats/` | Anime, Movie, OVA | Indonesia (`id`) | Katalog anime lengkap, Cloudflare bypass support, player AJAX server extractor (Gdplayer, KotakAnime, Filesim, Hxfile) |
+| **Idlix** | `https://z2.idlixku.com/movie` | Movies & TV Series | Indonesian (`id`) | API-driven catalog, multi-season & episode support, dynamic gate/claim token resolver, direct `.m3u8` streams, curated carousels (*Latest Movies*, *Latest TV Series*, *Netflix*, *Disney+*, *HBO*, *Apple TV+*, *Amazon Prime*). |
+| **PencuriMovie** | `https://ww44.pencurimovie.baby/` | Movies & TV Series | Malay (`ms`) | MovieMo WordPress engine, rich category carousels (*Latest Movies*, *TV Series*, *Most Rating*, *Top IMDB*, and country filters: *Malaysia, Indonesia, India, Japan, Thailand, China*). |
+| **PencuriMovie Sub Malay** | `https://pencurimoviesubmalay26.site/` | Movies & TV Series | Malay (`ms`) | ZetaFlix engine with multi-server resolution and 12 registered extractors: `DhtprePmsm`, `NetuPmsm`, `Playerxupns`, `Playerxp2p`, `Playerxseek`, `Playerxrpms`, `Player4me`, `Ezplayer`, `YandexcdnPmsm`, `Larhu`, plus AES-256-CTR `AbyssExtractor` & `AbyssMsmbotExtractor`. |
+| **Kuramanime** | `https://m2.kuramanime.ing/` | Anime | Indonesian (`id`) | Ongoing, completed, and popular anime carousels, dynamic tokenized API auth (`X-Fuck-ID`), KuramaDrive API, PixelDrain direct links. |
+| **Kuronime** | `https://kuronime.sbs/` | Anime, Movies, OVA | Indonesian (`id`) | Episode updates, ongoing anime, most popular, and anime movie carousels, multi-server iframe extraction (KrakenFiles, PixelDrain). |
+| **Otakudesu** | `https://otakudesu.blog/` | Anime, Movies, OVA | Indonesian (`id`) | Ongoing & completed anime carousels, DesuStream mirror AJAX resolution with nonce token extraction, Archive.org direct MP4 extraction, and download mirror redirect resolution. |
+
+---
+
+## 📱 How to Add Repository to CloudStream 3
+
+### Fast Setup (TV Remote / Short URL)
+Use the short URL designed for easy typing on Android TV remotes:
+```text
+https://is.gd/skycs3
+```
+
+### Direct Repository URL
+```text
+https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/repo.json
+```
+
+### Steps to Install:
+1. Open **CloudStream 3** on your Android device (TV Stick, TV Box, or smartphone).
+2. Navigate to **Settings** (⚙️) ➔ **Extensions** ➔ **Add Repository**.
+3. Enter:
+   - **Repository Name**: `IndoMalay Streams`
+   - **Repository URL**: `https://is.gd/skycs3`
+4. Tap **Download Repository**.
+5. Go to the Extensions tab and click **Install** on your desired providers:
+   - `Idlix`
+   - `PencuriMovie`
+   - `PencuriMovieSubMalay`
+   - `Kuramanime`
+   - `Kuronime`
+   - `Otakudesu`
 
 ---
 
@@ -21,39 +51,38 @@ Koleksi ekstensi / plugin untuk aplikasi **[CloudStream 3](https://github.com/re
 
 ```text
 cloudstream repo/
-├── Idlix/                      # Ekstensi Idlix
+├── Idlix/                      # Idlix extension (API catalog, streaming platforms)
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
 │       ├── Idlix.kt
+│       ├── IdlixParser.kt
 │       └── IdlixPlugin.kt
-├── PencuriMovie/               # Ekstensi PencuriMovie (MovieMo)
+├── PencuriMovie/               # PencuriMovie extension (MovieMo)
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
 │       ├── PencuriMovie.kt
 │       └── PencuriMoviePlugin.kt
-├── PencuriMovieSubMalay/        # Ekstensi PencuriMovie Sub Malay (ZetaFlix)
+├── PencuriMovieSubMalay/        # PencuriMovie Sub Malay extension (ZetaFlix)
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
 │       ├── PencuriMovieSubMalay.kt
 │       ├── PencuriMovieSubMalayPlugin.kt
 │       └── Extractors.kt
-├── Kuramanime/                 # Ekstensi Kuramanime
+├── Kuramanime/                 # Kuramanime extension
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
 │       ├── Kuramanime.kt
 │       └── KuramanimePlugin.kt
-├── Kuronime/                   # Ekstensi Kuronime
+├── Kuronime/                   # Kuronime extension
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
 │       ├── Kuronime.kt
 │       └── KuronimePlugin.kt
-├── NontonAnimeID/              # Ekstensi NontonAnimeID
+├── Otakudesu/                  # Otakudesu extension (replaces NontonAnimeID)
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
-│       ├── NontonAnimeIDProvider.kt
-│       ├── NontonAnimeIDPlugin.kt
-│       ├── AnimeMetadata.kt
-│       └── Extractors.kt
+│       ├── Otakudesu.kt
+│       └── OtakudesuPlugin.kt
 ├── build.gradle.kts            # Root build configuration
 ├── settings.gradle.kts         # Root settings module includes
 ├── plugins.json                # Plugin registry manifest
@@ -63,49 +92,45 @@ cloudstream repo/
 
 ---
 
-## 🚀 Cara Build / Kompilasi Ekstensi
+## 🚀 Building & Development
 
-Pastikan perangkat Anda memiliki:
-- **Java JDK 17** (Temurin / OpenJDK 17)
+### Prerequisites
+- **Java JDK 17** (e.g. Eclipse Temurin or OpenJDK 17)
 - **Android SDK** (API Platform 33 / Build Tools)
 
-### 1. Build Semua Plugin Sekaligus
+### 1. Build All Plugins
 ```powershell
 .\gradlew.bat make
 ```
-Perintah ini akan mengkompilasi seluruh provider menjadi paket file `.cs3` di folder `build/` masing-masing subproject.
+Compiles all providers into `.cs3` packages located in the `build/` directory of each subproject.
 
-### 2. Generate Manifest `plugins.json`
+### 2. Generate Manifest (`plugins.json` and `repo.json`)
 ```powershell
 .\gradlew.bat makePluginsJson
 ```
-Perintah ini menghitung SHA-256 hash dan metadata setiap plugin yang telah dibuild dan menyimpannya di `build/plugins.json`.
+Calculates SHA-256 hashes and metadata for all compiled plugins and outputs the updated `build/plugins.json`.
 
-### 3. Build Plugin Spesifik
+### 3. Build a Specific Plugin
 ```powershell
-# Contoh build Idlix saja:
+# Build Idlix only:
 .\gradlew.bat Idlix:make
 
-# Contoh build PencuriMovieSubMalay saja:
+# Build PencuriMovieSubMalay only:
 .\gradlew.bat PencuriMovieSubMalay:make
+
+# Build Otakudesu only:
+.\gradlew.bat Otakudesu:make
 ```
 
-### 4. Deploy Langsung ke HP / Emulator Android via ADB
-Sambungkan HP Android Anda via USB Debugging, lalu jalankan:
+### 4. Direct Deploy via ADB (TV Stick / Mobile)
+Connect your device with USB or Wireless ADB:
 ```powershell
+adb connect <device-ip>:5555
 .\gradlew.bat Idlix:deployWithAdb
 ```
 
 ---
 
-## 📱 Cara Menambahkan Repository ke CloudStream
+## ⚖️ Disclaimer & License
 
-1. Buka aplikasi **CloudStream 3** di HP Android Anda.
-2. Buka menu **Settings** (Ikon Gerigi) ➔ **Extensions** (Ekstensi).
-3. Klik tombol **Add Repository** (Tambah Repositori).
-4. Masukkan nama repository (contoh: `IndoMalay Stream`).
-5. Masukkan URL ke file `repo.json` repositori Anda di GitHub:
-   ```text
-   https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/repo.json
-   ```
-6. Simpan, kemudian buka tab Extensions untuk menginstal provider yang diinginkan (`Idlix`, `PencuriMovie`, `PencuriMovieSubMalay`, `Kuramanime`, `Kuronime`, atau `NontonAnimeID`).
+This project is intended for educational and personal use only. The extensions in this repository do not host or store any media files; they merely parse publicly accessible web interfaces. All copyrights belong to their respective owners.
