@@ -6,6 +6,7 @@ import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addScore
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
 import com.lagradost.cloudstream3.extractors.VidStack
+import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.Jsoup
@@ -205,12 +206,12 @@ class PencuriMovieSubMalay : MainAPI() {
                     ).text
 
                     if (rawText.isNotBlank()) {
-                        val iframeSrc = Regex("""<iframe[^>]+src=["']([^"']+)["']""").find(rawText)?.groupValues?.get(1)
-                            ?: Regex(""""embed_url"\s*:\s*"([^"]+)"""").find(rawText)?.groupValues?.get(1)?.replace("""\/""", "/")
-                            ?: Jsoup.parse(rawText).selectFirst("iframe")?.attr("src")
-                            ?: if (rawText.startsWith("http")) rawText else null
+                        val parsed = tryParseJson<ZetaPlayerResponse>(rawText)
+                        val embedUrlHtml = parsed?.embedUrl ?: rawText
+                        val iframeSrc = Jsoup.parse(embedUrlHtml).selectFirst("iframe")?.attr("src")
+                            ?: Regex("""https?://[^\s"'<>\\}]+""").find(embedUrlHtml.replace("""\/""", "/"))?.value
 
-                        if (!iframeSrc.isNullOrBlank() && !iframeSrc.startsWith("about:")) {
+                        if (!iframeSrc.isNullOrBlank() && !iframeSrc.startsWith("about:") && !iframeSrc.startsWith("javascript:")) {
                             resolveStreamLink(iframeSrc, data, subtitleCallback, callback)
                         }
                     }
@@ -235,10 +236,11 @@ class PencuriMovieSubMalay : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val fixed = if (url.startsWith("//")) "https:$url" else url
+        val fixed = fixUrl(url)
         if (fixed.contains("/#")) {
             VidStack().getUrl(fixed, "", subtitleCallback, callback)
-        } else if (fixed.contains("abyss") || fixed.contains("msmbot.club") || fixed.contains("short.icu")) {
+            loadExtractor(fixed, referer, subtitleCallback, callback)
+        } else if (fixed.contains("abyss") || fixed.contains("msmbot.club") || fixed.contains("short.icu") || fixed.contains("hydrax")) {
             AbyssExtractor().getUrl(fixed, referer, subtitleCallback, callback)
             loadExtractor(fixed, referer, subtitleCallback, callback)
         } else {

@@ -6,6 +6,8 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.extractors.VidhideExtractor
 import com.lagradost.cloudstream3.extractors.VidStack
 import com.lagradost.cloudstream3.utils.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.security.MessageDigest
 import javax.crypto.Cipher
@@ -123,6 +125,47 @@ open class AbyssExtractor : ExtractorApi() {
         val datasMatch = Regex("""const\s+datas\s*=\s*["']([^"']+)["']""").find(response)
         if (datasMatch != null) {
             val base64Data = datasMatch.groupValues[1]
+
+            // 1. Try remote dec-abyss API first (fast & reliable)
+            try {
+                val decReqBody = JSONObject().put("text", base64Data).toString().toRequestBody("application/json".toMediaTypeOrNull())
+                val decResponse = app.post(
+                    "https://enc-dec.app/api/dec-abyss",
+                    headers = mapOf(
+                        "Content-Type" to "application/json",
+                        "Origin" to "https://playhydrax.com",
+                        "Referer" to "https://playhydrax.com/"
+                    ),
+                    requestBody = decReqBody
+                ).text
+
+                val decJson = JSONObject(decResponse)
+                val result = decJson.optJSONObject("result")
+                val sources = result?.optJSONArray("sources")
+                if (sources != null && sources.length() > 0) {
+                    for (i in 0 until sources.length()) {
+                        val s = sources.getJSONObject(i)
+                        val streamUrl = s.optString("url")
+                        val qualityStr = s.optString("type")
+                        if (streamUrl.isNotBlank()) {
+                            callback.invoke(
+                                newExtractorLink(
+                                    source = name,
+                                    name = if (qualityStr.isNotBlank()) "$name $qualityStr" else name,
+                                    url = streamUrl,
+                                    type = ExtractorLinkType.VIDEO
+                                ) {
+                                    this.referer = "https://playhydrax.com/"
+                                    this.quality = getQualityFromName(qualityStr)
+                                }
+                            )
+                        }
+                    }
+                    return
+                }
+            } catch (_: Exception) {}
+
+            // 2. Local AES-CTR decrypt fallback
             try {
                 val rawDecoded = String(Base64.decode(base64Data, Base64.DEFAULT), Charsets.ISO_8859_1)
 

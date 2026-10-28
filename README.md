@@ -9,8 +9,9 @@ A collection of extensions/plugins for the **[CloudStream 3](https://github.com/
 | Provider | Target Website | Media Types | Language | Key Features |
 | :--- | :--- | :--- | :--- | :--- |
 | **Idlix** | `https://z2.idlixku.com/movie` | Movies & TV Series | Indonesian (`id`) | API-driven catalog, multi-season & episode support, dynamic gate/claim token resolver, direct `.m3u8` streams, curated carousels (*Latest Movies*, *Latest TV Series*, *Netflix*, *Disney+*, *HBO*, *Apple TV+*, *Amazon Prime*). |
+| **LayarKaca (LK21)** | `https://tv12.lk21official.cc/` | Movies, TV Series, Asian Drama | Indonesian (`id`) | Full LayarKaca21 & Nontondrama scraping, homepage carousels (*Film Terpopuler, IMDb Rating, Terbanyak Komentar, Upload Terbaru, Series Terbaru, Film Asian Terbaru*), dynamic `VideoNode` / `playcdn.de` verify API resolution, Hownetwork, and Turbovid HLS extractors. |
 | **PencuriMovie** | `https://ww44.pencurimovie.baby/` | Movies & TV Series | Malay (`ms`) | MovieMo WordPress engine, rich category carousels (*Latest Movies*, *TV Series*, *Most Rating*, *Top IMDB*, and country filters: *Malaysia, Indonesia, India, Japan, Thailand, China*). |
-| **PencuriMovie Sub Malay** | `https://pencurimoviesubmalay26.site/` | Movies & TV Series | Malay (`ms`) | ZetaFlix engine with multi-server resolution and 12 registered extractors: `DhtprePmsm`, `NetuPmsm`, `Playerxupns`, `Playerxp2p`, `Playerxseek`, `Playerxrpms`, `Player4me`, `Ezplayer`, `YandexcdnPmsm`, `Larhu`, plus AES-256-CTR `AbyssExtractor` & `AbyssMsmbotExtractor`. |
+| **PencuriMovie Sub Malay** | `https://pencurimoviesubmalay26.site/` | Movies & TV Series | Malay (`ms`) | ZetaFlix engine with multi-server resolution and 12 registered extractors: `DhtprePmsm`, `NetuPmsm`, `Playerxupns`, `Playerxp2p`, `Playerxseek`, `Playerxrpms`, `Player4me`, `Ezplayer`, `YandexcdnPmsm`, `Larhu`, plus remote `dec-abyss` & AES-256-CTR `AbyssExtractor`. |
 | **Kuramanime** | `https://m2.kuramanime.ing/` | Anime | Indonesian (`id`) | Ongoing, completed, and popular anime carousels, dynamic tokenized API auth (`X-Fuck-ID`), KuramaDrive API, PixelDrain direct links. |
 | **Kuronime** | `https://kuronime.sbs/` | Anime, Movies, OVA | Indonesian (`id`) | Episode updates, ongoing anime, most popular, and anime movie carousels, multi-server iframe extraction (KrakenFiles, PixelDrain). |
 | **Otakudesu** | `https://otakudesu.blog/` | Anime, Movies, OVA | Indonesian (`id`) | Ongoing & completed anime carousels, DesuStream mirror AJAX resolution with nonce token extraction, Archive.org direct MP4 extraction, and download mirror redirect resolution. |
@@ -39,6 +40,7 @@ https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/repo.jso
 4. Tap **Download Repository**.
 5. Go to the Extensions tab and click **Install** on your desired providers:
    - `Idlix`
+   - `LayarKaca`
    - `PencuriMovie`
    - `PencuriMovieSubMalay`
    - `Kuramanime`
@@ -57,6 +59,12 @@ cloudstream repo/
 │       ├── Idlix.kt
 │       ├── IdlixParser.kt
 │       └── IdlixPlugin.kt
+├── LayarKaca/                  # LayarKaca21 (LK21) extension (VideoNode, PlayCDN)
+│   ├── build.gradle.kts
+│   └── src/main/kotlin/com/hexated/
+│       ├── LayarKacaProvider.kt
+│       ├── LayarKacaProviderPlugin.kt
+│       └── Extractors.kt
 ├── PencuriMovie/               # PencuriMovie extension (MovieMo)
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
