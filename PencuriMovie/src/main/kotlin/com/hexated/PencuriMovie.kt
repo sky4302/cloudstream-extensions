@@ -46,7 +46,11 @@ class PencuriMovie : MainAPI() {
         val a = this.selectFirst("a")
         val title = (a?.attr("oldtitle")?.takeIf { it.isNotBlank() } ?: a?.attr("title") ?: this.text()).substringBefore("(")
         val href = fixUrl(a?.attr("href").orEmpty())
-        val posterUrl = fixUrlNull(a?.selectFirst("img")?.attr("data-original") ?: a?.selectFirst("img")?.attr("src"))
+        val img = a?.selectFirst("img") ?: this.selectFirst("img")
+        val rawPoster = img?.attr("data-original")?.ifBlank { null }
+            ?: img?.attr("data-src")?.ifBlank { null }
+            ?: img?.attr("src")?.ifBlank { null }
+        val posterUrl = fixUrlNull(rawPoster)
         val quality = getQualityFromString(this.select("span.mli-quality").text())
         val isSeries = href.contains("/series/") || href.contains("/tv/")
         return if (isSeries) {
@@ -70,7 +74,13 @@ class PencuriMovie : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url, timeout = 50L).document
         val title = document.selectFirst("div.mvic-desc h3")?.text()?.trim().orEmpty().substringBefore("(")
-        val poster = document.selectFirst("meta[property='og:image']")?.attr("content")
+        val poster = fixUrlNull(
+            document.selectFirst("div.mvic-thumb img")?.let { img ->
+                img.attr("data-original").ifBlank { null }
+                    ?: img.attr("data-src").ifBlank { null }
+                    ?: img.attr("src").ifBlank { null }
+            } ?: document.selectFirst("meta[property='og:image']")?.attr("content")
+        )
         val description = document.selectFirst("div.desc p.f-desc")?.text()?.trim()
         val isSeries = url.contains("series")
         val trailer = document.selectFirst("meta[itemprop=embedUrl]")?.attr("content")
@@ -92,6 +102,7 @@ class PencuriMovie : MainAPI() {
                             this.episode = rawEpisode
                             this.name = epName
                             this.season = season
+                            this.posterUrl = poster
                         }
                     )
                 }
@@ -99,6 +110,7 @@ class PencuriMovie : MainAPI() {
 
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = poster
                 this.plot = description
                 this.tags = genre
                 this.year = year
@@ -109,6 +121,7 @@ class PencuriMovie : MainAPI() {
         } else {
             newMovieLoadResponse(title, url, TvType.Movie, url) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = poster
                 this.plot = description
                 this.tags = genre
                 this.year = year

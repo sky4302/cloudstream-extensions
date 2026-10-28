@@ -1,5 +1,6 @@
 package com.hexated
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonProperty
 
 data class ApiResponse(
@@ -13,7 +14,9 @@ data class ApiItem(
     val title: String? = null,
     val slug: String? = null,
 
+    @JsonAlias("poster_path", "posterPath", "poster", "image", "thumbnail")
     val posterPath: String? = null,
+    @JsonAlias("backdrop_path", "backdropPath", "backdrop")
     val backdropPath: String? = null,
 
     val releaseDate: String? = null,
@@ -158,7 +161,9 @@ data class SearchApiResult(
     val voteAverage: Double? = null,
     val viewCount: Long? = null,
     val popularity: Double? = null,
+    @JsonAlias("poster_path", "posterPath", "poster", "image", "thumbnail")
     val posterPath: String? = null,
+    @JsonAlias("backdrop_path", "backdropPath", "backdrop")
     val backdropPath: String? = null,
     val slug: String,
     val firstAirDate: String? = null,

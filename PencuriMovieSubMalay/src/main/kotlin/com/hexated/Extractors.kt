@@ -40,7 +40,7 @@ class Playerxseek : VidStack() {
 
 class Playerxrpms : VidStack() {
     override var name = "Playerxrpms"
-    override var mainUrl = "https://playerx.rpmstream.online"
+    override var mainUrl = "https://playerx.rpmplay.online"
     override var requiresReferer = true
 }
 
@@ -125,48 +125,80 @@ open class AbyssExtractor : ExtractorApi() {
             val base64Data = datasMatch.groupValues[1]
             try {
                 val rawDecoded = String(Base64.decode(base64Data, Base64.DEFAULT), Charsets.ISO_8859_1)
-                val json = JSONObject(rawDecoded)
-                val userId = json.opt("user_id")?.toString() ?: ""
-                val slug = json.optString("slug")
-                val md5Id = json.opt("md5_id")?.toString() ?: ""
-                val media = json.optString("media")
 
-                if (userId.isNotEmpty() && slug.isNotEmpty() && md5Id.isNotEmpty() && media.isNotEmpty()) {
-                    val keyString = "$userId:$slug:$md5Id"
-                    val md5Digest = MessageDigest.getInstance("MD5").digest(keyString.toByteArray(Charsets.UTF_8))
-                    val md5Hex = md5Digest.joinToString("") { "%02x".format(it) }
+                val userId = Regex(""""user_id"\s*:\s*(\d+)""").find(rawDecoded)?.groupValues?.get(1)
+                val slug = Regex(""""slug"\s*:\s*"([^"]+)"""").find(rawDecoded)?.groupValues?.get(1)
+                val md5Id = Regex(""""md5_id"\s*:\s*(\d+)""").find(rawDecoded)?.groupValues?.get(1)
+                val mediaKeyIdx = rawDecoded.indexOf(""""media":"""")
 
-                    val keyBytes = md5Hex.toByteArray(Charsets.UTF_8)
-                    val ivBytes = keyBytes.copyOfRange(0, 16)
+                if (!userId.isNullOrEmpty() && !slug.isNullOrEmpty() && !md5Id.isNullOrEmpty() && mediaKeyIdx != -1) {
+                    val mediaValStart = mediaKeyIdx + 9
+                    val mediaValEnd = rawDecoded.lastIndexOf('"')
+                    if (mediaValEnd > mediaValStart) {
+                        val rawMedia = rawDecoded.substring(mediaValStart, mediaValEnd)
 
-                    val cipher = Cipher.getInstance("AES/CTR/NoPadding")
-                    val secretKey = SecretKeySpec(keyBytes, "AES")
-                    val ivSpec = IvParameterSpec(ivBytes)
-                    cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
-
-                    val mediaBytes = ByteArray(media.length) { media[it].code.toByte() }
-                    val decryptedString = String(cipher.doFinal(mediaBytes), Charsets.UTF_8)
-
-                    val decryptedJson = JSONObject(decryptedString)
-                    val mp4 = decryptedJson.optJSONObject("mp4")
-                    val sources = mp4?.optJSONArray("sources") ?: decryptedJson.optJSONArray("sources")
-                    if (sources != null && sources.length() > 0) {
-                        for (i in 0 until sources.length()) {
-                            val srcObj = sources.optJSONObject(i) ?: continue
-                            val srcUrl = srcObj.optString("url").trimEnd('/')
-                            val path = srcObj.optString("path").trimStart('/')
-                            val label = srcObj.optString("label").ifBlank { "HD" }
-                            val streamUrl = if (path.isNotBlank()) "$srcUrl/$path" else srcUrl
-                            val quality = getQualityFromName(label)
-
-                            callback.invoke(
-                                newExtractorLink(name, if (label.isNotBlank()) "$name $label" else name, streamUrl, INFER_TYPE) {
-                                    this.referer = fixed
-                                    this.quality = quality
+                        val mediaSb = StringBuilder(rawMedia.length)
+                        var i = 0
+                        while (i < rawMedia.length) {
+                            val c = rawMedia[i]
+                            if (c == '\\' && i + 1 < rawMedia.length) {
+                                val next = rawMedia[++i]
+                                when {
+                                    next == 'u' && i + 4 < rawMedia.length -> {
+                                        val hex = rawMedia.substring(i + 1, i + 5)
+                                        mediaSb.append(hex.toInt(16).toChar())
+                                        i += 4
+                                    }
+                                    next == 'n' -> mediaSb.append('\n')
+                                    next == 'r' -> mediaSb.append('\r')
+                                    next == 't' -> mediaSb.append('\t')
+                                    next == 'b' -> mediaSb.append('\b')
+                                    next == 'f' -> mediaSb.append('\u000c')
+                                    else -> mediaSb.append(next)
                                 }
-                            )
+                            } else {
+                                mediaSb.append(c)
+                            }
+                            i++
                         }
-                        return
+                        val media = mediaSb.toString()
+
+                        val keyString = "$userId:$slug:$md5Id"
+                        val md5Digest = MessageDigest.getInstance("MD5").digest(keyString.toByteArray(Charsets.UTF_8))
+                        val md5Hex = md5Digest.joinToString("") { "%02x".format(it) }
+
+                        val keyBytes = md5Hex.toByteArray(Charsets.UTF_8)
+                        val ivBytes = keyBytes.copyOfRange(0, 16)
+
+                        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
+                        val secretKey = SecretKeySpec(keyBytes, "AES")
+                        val ivSpec = IvParameterSpec(ivBytes)
+                        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
+
+                        val mediaBytes = ByteArray(media.length) { media[it].code.toByte() }
+                        val decryptedString = String(cipher.doFinal(mediaBytes), Charsets.UTF_8)
+
+                        val decryptedJson = JSONObject(decryptedString)
+                        val mp4 = decryptedJson.optJSONObject("mp4")
+                        val sources = mp4?.optJSONArray("sources") ?: decryptedJson.optJSONArray("sources")
+                        if (sources != null && sources.length() > 0) {
+                            for (sIdx in 0 until sources.length()) {
+                                val srcObj = sources.optJSONObject(sIdx) ?: continue
+                                val srcUrl = srcObj.optString("url").trimEnd('/')
+                                val path = srcObj.optString("path").trimStart('/')
+                                val label = srcObj.optString("label").ifBlank { "HD" }
+                                val streamUrl = if (path.isNotBlank()) "$srcUrl/$path" else srcUrl
+                                val quality = getQualityFromName(label)
+
+                                callback.invoke(
+                                    newExtractorLink(name, if (label.isNotBlank()) "$name $label" else name, streamUrl, INFER_TYPE) {
+                                        this.referer = fixed
+                                        this.quality = quality
+                                    }
+                                )
+                            }
+                            return
+                        }
                     }
                 }
             } catch (_: Exception) {}

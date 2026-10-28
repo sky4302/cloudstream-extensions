@@ -55,11 +55,11 @@ class PencuriMovieSubMalay : MainAPI() {
         val rawTitle = (a.attr("title").ifBlank { this.selectFirst("h3")?.text() } ?: "").substringBefore("(")
             .trim()
         val title = if (rawTitle.isNotBlank()) rawTitle else return null
-        val posterUrl = fixUrlNull(
-            this.selectFirst("img")?.attr("data-src")
-                ?: this.selectFirst("img")?.attr("data-original")
-                ?: this.selectFirst("img")?.attr("src")
-        )
+        val img = this.selectFirst("img") ?: a.selectFirst("img")
+        val rawPoster = img?.attr("data-original")?.ifBlank { null }
+            ?: img?.attr("data-src")?.ifBlank { null }
+            ?: img?.attr("src")?.ifBlank { null }
+        val posterUrl = fixUrlNull(rawPoster)
         val quality = this.selectFirst("span.item-quality, span.mli-quality")?.text()?.trim().orEmpty()
         val isSeries = href.contains("/tvshows/") || a.attr("data-ptype") == "tvshows" || this.attr("data-ptype") == "tvshows"
 
@@ -192,7 +192,7 @@ class PencuriMovieSubMalay : MainAPI() {
             val type = li.attr("data-type").trim()
             if (post.isNotBlank() && nume.isNotBlank() && type.isNotBlank() && nume != "fake") {
                 try {
-                    val res = app.post(
+                    val rawText = app.post(
                         "$mainUrl/wp-admin/admin-ajax.php",
                         data = mapOf(
                             "action" to "zeta_player_ajax",
@@ -202,13 +202,16 @@ class PencuriMovieSubMalay : MainAPI() {
                         ),
                         referer = data,
                         headers = mapOf("X-Requested-With" to "XMLHttpRequest")
-                    ).parsedSafe<ZetaPlayerResponse>()?.embedUrl
+                    ).text
 
-                    if (!res.isNullOrBlank()) {
-                        val link = Jsoup.parse(res).selectFirst("iframe")?.attr("src")
-                            ?: if (res.startsWith("http")) res else null
-                        if (!link.isNullOrBlank()) {
-                            resolveStreamLink(link, data, subtitleCallback, callback)
+                    if (rawText.isNotBlank()) {
+                        val iframeSrc = Regex("""<iframe[^>]+src=["']([^"']+)["']""").find(rawText)?.groupValues?.get(1)
+                            ?: Regex(""""embed_url"\s*:\s*"([^"]+)"""").find(rawText)?.groupValues?.get(1)?.replace("""\/""", "/")
+                            ?: Jsoup.parse(rawText).selectFirst("iframe")?.attr("src")
+                            ?: if (rawText.startsWith("http")) rawText else null
+
+                        if (!iframeSrc.isNullOrBlank() && !iframeSrc.startsWith("about:")) {
+                            resolveStreamLink(iframeSrc, data, subtitleCallback, callback)
                         }
                     }
                 } catch (_: Exception) {}

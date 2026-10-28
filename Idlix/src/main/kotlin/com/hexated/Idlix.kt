@@ -38,6 +38,18 @@ class Idlix : MainAPI() {
         "$mainUrl/api/browse?page=%d&limit=36&sort=latest&network=netflix" to "Netflix",
     )
 
+    private fun getPosterUrl(path: String?, fallbackPath: String? = null): String? {
+        val raw = path?.trim()?.ifBlank { null }
+            ?: fallbackPath?.trim()?.ifBlank { null }
+            ?: return null
+        return when {
+            raw.startsWith("http://") || raw.startsWith("https://") -> raw
+            raw.startsWith("//") -> "https:$raw"
+            raw.startsWith("/") -> "https://image.tmdb.org/t/p/w500$raw"
+            else -> "https://image.tmdb.org/t/p/w500/$raw"
+        }
+    }
+
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
@@ -47,7 +59,7 @@ class Idlix : MainAPI() {
             ?: return newHomePageResponse(request.name, emptyList())
         val home = res.data.map { item ->
             val title = item.title ?: "Unknown"
-            val poster = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" }
+            val poster = getPosterUrl(item.posterPath, item.backdropPath)
             if (item.contentType == "movie") {
                 val movieurl = "$mainUrl/api/movies/${item.slug}"
                 newMovieSearchResponse(title, movieurl, TvType.Movie) {
@@ -78,7 +90,7 @@ class Idlix : MainAPI() {
         val items = res.results
         val results = items.mapNotNull { item ->
             val title = item.title
-            val poster = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" }
+            val poster = getPosterUrl(item.posterPath, item.backdropPath)
             val year = (item.releaseDate ?: item.firstAirDate)?.substringBefore("-")?.toIntOrNull()
 
             val link = when (item.contentType) {
@@ -115,8 +127,8 @@ class Idlix : MainAPI() {
             ?: throw ErrorLoadingException("Invalid JSON")
 
         val title = data.title ?: "Unknown"
-        val poster = data.posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
-        val backdrop = data.backdropPath?.let { "https://image.tmdb.org/t/p/original$it" }
+        val poster = getPosterUrl(data.posterPath, data.backdropPath)
+        val backdrop = getPosterUrl(data.backdropPath, data.posterPath)
 
         val year = (data.releaseDate ?: data.firstAirDate)
             ?.substringBefore("-")
@@ -147,7 +159,8 @@ class Idlix : MainAPI() {
             app.get(relatedUrl, referer = mainUrl)
                 .parsedSafe<ApiResponse>()?.data?.mapNotNull { item ->
                     val itemTitle = item.title ?: return@mapNotNull null
-                    val itemPoster = item.posterPath?.let { "https://image.tmdb.org/t/p/w342$it" }
+                    val itemPoster = getPosterUrl(item.posterPath, item.backdropPath)
+                    val itemBackdrop = getPosterUrl(item.backdropPath, item.posterPath)
 
                     val link = if (item.contentType == "movie") {
                         "$mainUrl/api/movies/${item.slug}"
