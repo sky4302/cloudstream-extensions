@@ -106,6 +106,6 @@ Sambungkan HP Android Anda via USB Debugging, lalu jalankan:
 4. Masukkan nama repository (contoh: `IndoMalay Stream`).
 5. Masukkan URL ke file `repo.json` repositori Anda di GitHub:
    ```text
-   https://raw.githubusercontent.com/<username>/<repo>/builds/repo.json
+   https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/repo.json
    ```
 6. Simpan, kemudian buka tab Extensions untuk menginstal provider yang diinginkan (`Idlix`, `PencuriMovie`, `PencuriMovieSubMalay`, `Kuramanime`, `Kuronime`, atau `NontonAnimeID`).
