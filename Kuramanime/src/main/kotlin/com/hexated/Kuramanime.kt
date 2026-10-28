@@ -19,6 +19,7 @@ class Kuramanime : MainAPI() {
 
     override val mainPage = mainPageOf(
         "$mainUrl/quick/ongoing?order_by=updated&page=" to "Sedang Tayang",
+        "$mainUrl/quick/ongoing?order_by=popular&page=" to "Paling Populer",
         "$mainUrl/quick/finished?order_by=updated&page=" to "Selesai Tayang",
         "$mainUrl/quick/movie?order_by=updated&page=" to "Film Layar Lebar"
     )

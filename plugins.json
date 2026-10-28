@@ -1,10 +1,10 @@
 [
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://z2.idlixku.com&sz=%size%",
-        "fileHash": "sha256-8db3ba755213800c5debb4eddd2d0ff30263f903b33fea5258db77bb60da60d5",
+        "fileHash": "sha256-4c125cdf7b69804cb20e3da30e43cad89baa8f5f86c0709eb9e0de2f22807763",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 33743,
+        "fileSize": 49849,
         "status": 1,
         "language": "id",
         "authors": [
@@ -22,10 +22,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://m2.kuramanime.ing&sz=%size%",
-        "fileHash": "sha256-77aef654982e2157ee7ad1d3d71e6ca41044e9e3f934aa5953aad7e103fef2c6",
+        "fileHash": "sha256-50a9e4568e3387f9b3b9a95c8699e0145c7d75a1ea5aa783776dada2ae29a538",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 25504,
+        "fileSize": 25540,
         "status": 1,
         "language": "id",
         "authors": [
@@ -42,10 +42,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://kuronime.sbs&sz=%size%",
-        "fileHash": "sha256-992970f5fd6f834c829efaa9c9b2360c94a3951f6428bdd3176fe28ca964dc9b",
+        "fileHash": "sha256-eef5217e3a4e40dd36ea77bcf62dcb629af1a4f5d9157a400c0283994b1dab66",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 18465,
+        "fileSize": 18613,
         "status": 1,
         "language": "id",
         "authors": [
@@ -63,15 +63,15 @@
         "name": "Kuronime"
     },
     {
-        "iconUrl": "https://www.google.com/s2/favicons?domain=https://s13.nontonanimeid.boats&sz=%size%",
-        "fileHash": "sha256-c2f4cd428a4b86a101e5d41c2d0b3bdb2a159648933ad0cd21f2a6de0b92c5d7",
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
+        "fileHash": "sha256-4897528ae3e79ece7ac70ac4c6994bced0e60e77e93e8a4e0786ec35b1c0e0cb",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 52995,
+        "fileSize": 21419,
         "status": 1,
         "language": "id",
         "authors": [
-            "CloudstreamUser"
+            "sky4302"
         ],
         "tvTypes": [
             "Anime",
@@ -79,17 +79,17 @@
             "OVA"
         ],
         "version": 1,
-        "internalName": "NontonAnimeID",
-        "description": "NontonAnimeID - Streaming Anime Subtitle Indonesia",
-        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/NontonAnimeID.cs3",
-        "name": "NontonAnimeID"
+        "internalName": "Otakudesu",
+        "description": "Otakudesu - Nonton Anime Subtitle Indonesia",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Otakudesu.cs3",
+        "name": "Otakudesu"
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://ww44.pencurimovie.baby&sz=%size%",
-        "fileHash": "sha256-f94802fca38c93d7b0d3b6d7bcc42148cd77f83f775d4dd5890635dce17ce1f3",
+        "fileHash": "sha256-a411e1701be45a19ae3883bc645804e3a8f4d8f6e23808ab8c7d68fef0cb20d7",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 16128,
+        "fileSize": 14205,
         "status": 1,
         "language": "ms",
         "authors": [
@@ -108,10 +108,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://pencurimoviesubmalay26.site&sz=%size%",
-        "fileHash": "sha256-7d60e28f0cd18922cb6b8f4841f8acc1cd1a38a262aabe6e38aa249b7bcf9407",
+        "fileHash": "sha256-97b69135a91284af8070c76a4dbf37fdf80947dc65322aeb542e762d9af4083a",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 27522,
+        "fileSize": 34883,
         "status": 1,
         "language": "ms",
         "authors": [

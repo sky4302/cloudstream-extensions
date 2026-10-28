@@ -3,12 +3,98 @@ package com.hexated
 import android.util.Base64
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.extractors.VidhideExtractor
+import com.lagradost.cloudstream3.extractors.VidStack
 import com.lagradost.cloudstream3.utils.*
 import org.json.JSONObject
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
+
+class DhtprePmsm : VidhideExtractor() {
+    override var mainUrl = "https://dhtpre.com"
+}
+
+class NetuPmsm : VidhideExtractor() {
+    override var mainUrl = "https://netu.msmbot.club"
+}
+
+class Playerxupns : VidStack() {
+    override var name = "Playerxupns"
+    override var mainUrl = "https://playerx.upns.live"
+    override var requiresReferer = true
+}
+
+class Playerxp2p : VidStack() {
+    override var name = "Playerxp2p"
+    override var mainUrl = "https://playerx.p2pstream.online"
+    override var requiresReferer = true
+}
+
+class Playerxseek : VidStack() {
+    override var name = "Playerxseek"
+    override var mainUrl = "https://playerx.seekplays.online"
+    override var requiresReferer = true
+}
+
+class Playerxrpms : VidStack() {
+    override var name = "Playerxrpms"
+    override var mainUrl = "https://playerx.rpmstream.online"
+    override var requiresReferer = true
+}
+
+class Player4me : VidStack() {
+    override var name = "Player4me"
+    override var mainUrl = "https://playerx.player4me.online"
+    override var requiresReferer = true
+}
+
+class Ezplayer : VidStack() {
+    override var name = "Ezplayer"
+    override var mainUrl = "https://playerx.ezplayer.stream"
+    override var requiresReferer = true
+}
+
+class YandexcdnPmsm : VidhideExtractor() {
+    override var mainUrl = "https://yandexcdn.com"
+}
+
+class Larhu : ExtractorApi() {
+    override var name = "Larhu"
+    override var mainUrl = "https://larhu.website"
+    override val requiresReferer = true
+
+    override suspend fun getUrl(
+        url: String,
+        referer: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ) {
+        val doc = try { app.get(url).text } catch (_: Exception) { return }
+
+        val streamurl = Regex("""file\s*:\s*"([^"]+\.(m3u8|mp4))"""")
+            .find(doc)
+            ?.groupValues?.get(1)
+            ?: return
+
+        if (streamurl.contains(".m3u8", true)) {
+            M3u8Helper.generateM3u8(name, streamurl, url).forEach(callback)
+        } else {
+            callback(
+                newExtractorLink(
+                    source = name,
+                    name = name,
+                    url = streamurl,
+                    type = ExtractorLinkType.VIDEO
+                ) {
+                    this.referer = url
+                    this.quality = Qualities.Unknown.value
+                }
+            )
+        }
+    }
+}
 
 open class AbyssExtractor : ExtractorApi() {
     override val name = "Abyss"
@@ -38,7 +124,6 @@ open class AbyssExtractor : ExtractorApi() {
         if (datasMatch != null) {
             val base64Data = datasMatch.groupValues[1]
             try {
-                // Must decode base64 as ISO-8859-1 (Latin1) to preserve raw byte representations
                 val rawDecoded = String(Base64.decode(base64Data, Base64.DEFAULT), Charsets.ISO_8859_1)
                 val json = JSONObject(rawDecoded)
                 val userId = json.opt("user_id")?.toString() ?: ""
@@ -84,12 +169,9 @@ open class AbyssExtractor : ExtractorApi() {
                         return
                     }
                 }
-            } catch (_: Exception) {
-                // Fallback to URL discovery if decryption fails
-            }
+            } catch (_: Exception) {}
         }
 
-        // Fallback: check for standard video URLs in the page
         Regex("""https?://[^\s"'<>]+\.(?:mp4|m3u8)[^\s"'<>]*""", RegexOption.IGNORE_CASE)
             .findAll(response)
             .map { it.value }

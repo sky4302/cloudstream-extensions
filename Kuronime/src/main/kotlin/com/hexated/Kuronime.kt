@@ -16,7 +16,10 @@ class Kuronime : MainAPI() {
     override val supportedTypes = setOf(TvType.Anime, TvType.AnimeMovie, TvType.OVA)
 
     override val mainPage = mainPageOf(
-        "$mainUrl/page/" to "New Episodes"
+        "$mainUrl/page/" to "Episode Terbaru",
+        "$mainUrl/ongoing-anime/page/" to "Anime Ongoing",
+        "$mainUrl/popular-anime/page/" to "Paling Populer",
+        "$mainUrl/movies/page/" to "Anime Movies"
     )
 
     private fun episodeToAnimeUrl(url: String): String {
@@ -34,15 +37,15 @@ class Kuronime : MainAPI() {
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val document = app.get(request.data + page).document
 
-        val items = document.select("article.bsu").mapNotNull { article ->
-            val bsux = article.selectFirst("div.bsux") ?: return@mapNotNull null
+        val items = document.select("article.bsu, div.listupd article.bs, article.bs").mapNotNull { article ->
+            val bsux = article.selectFirst("div.bsux") ?: article
             val a = bsux.selectFirst("a[href]") ?: return@mapNotNull null
             val href = a.attr("href").ifBlank { null } ?: return@mapNotNull null
 
-            val title = bsux.selectFirst("div.bsuxtt h2")?.text()?.trim()
+            val title = bsux.selectFirst("div.bsuxtt h2, div.tt h2, .title, h2")?.text()?.trim()
                 ?: return@mapNotNull null
 
-            val poster = a.selectFirst("div.limit img[itemprop=image]")?.attr("src")?.ifBlank { null }
+            val poster = a.selectFirst("div.limit img[itemprop=image], img")?.attr("src")?.ifBlank { null }
                 ?: a.selectFirst("div.limit img")?.attr("src")?.ifBlank { null }
 
             val epText = a.selectFirst("div.bt div.ep")?.text()?.trim().orEmpty()

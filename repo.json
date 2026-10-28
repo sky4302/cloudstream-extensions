@@ -1,6 +1,6 @@
 {
     "name": "IndoMalay CloudStream Extensions",
-    "description": "CloudStream 3 extensions targeting Idlix, PencuriMovie, PencuriMovieSubMalay, Kuramanime, Kuronime, and NontonAnimeID",
+    "description": "CloudStream 3 extensions targeting Idlix, PencuriMovie, PencuriMovieSubMalay, Kuramanime, Kuronime, and Otakudesu",
     "manifestVersion": 1,
     "pluginLists": [
         "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/plugins.json"

@@ -1,13 +1,19 @@
 package com.hexated
 
-import org.jsoup.nodes.Element
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.LoadResponse.Companion.addScore
-import com.lagradost.cloudstream3.utils.*
-import org.json.JSONObject
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
+import com.lagradost.cloudstream3.extractors.VidStack
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.loadExtractor
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class PencuriMovieSubMalay : MainAPI() {
-
     override var mainUrl = "https://pencurimoviesubmalay26.site"
     override var name = "PencuriMovie Sub Malay"
     override val hasMainPage = true
@@ -16,158 +22,157 @@ class PencuriMovieSubMalay : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
 
     override val mainPage = mainPageOf(
+        "trending" to "Trending",
         "movies" to "Latest Movies",
         "tvshows" to "TV Shows",
-        "group_movie/malaysub" to "Malay Subtitle",
-        "group_movie/malaydub" to "Malay Dubbed",
         "group_movie/malaysia" to "Malaysia Movies",
         "group_movie/indonesia" to "Indonesia Movies",
-        "group_movie/china" to "China Movies",
+        "group_movie/malaysub" to "Malay Subtitle",
+        "group_movie/malaydub" to "Malay Dubbed",
         "group_movie/south-korea" to "Korea Movies",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val path = if (page == 1) "${request.data}/" else "${request.data}/page/$page/"
         val document = app.get("$mainUrl/$path", timeout = 30L).document
-        val home = document.select("div.display-item, div.module-item").mapNotNull { it.toSearchResult() }
+        val items = document.select("div.item-box, div.display-item, div.module-item").mapNotNull {
+            it.toSearchResult()
+        }.distinctBy { it.url }
 
         return newHomePageResponse(
             list = HomePageList(
                 name = request.name,
-                list = home,
+                list = items,
                 isHorizontalImages = false
             ),
-            hasNext = home.isNotEmpty()
+            hasNext = items.isNotEmpty()
         )
     }
 
     private fun Element.toSearchResult(): SearchResponse? {
         val a = this.selectFirst("a[href]") ?: return null
         val href = fixUrl(a.attr("href"))
-        val title = a.attr("title").substringBefore("(").trim()
-            .ifEmpty { this.selectFirst("div.item-desc-title h3")?.text()?.substringBefore("(")?.trim() }
-            .orEmpty()
-        if (title.isBlank()) return null
-
-        val img = this.selectFirst("img")
-        val rawPoster = img?.getImageAttr()
-        val posterUrl = fixUrlNull(rawPoster)
-
-        val quality = this.selectFirst("span.item-quality")?.text()?.trim()?.replace("?", "")?.trim().orEmpty()
+        val rawTitle = (a.attr("title").ifBlank { this.selectFirst("h3")?.text() } ?: "").substringBefore("(")
+            .trim()
+        val title = if (rawTitle.isNotBlank()) rawTitle else return null
+        val posterUrl = fixUrlNull(
+            this.selectFirst("img")?.attr("data-src")
+                ?: this.selectFirst("img")?.attr("data-original")
+                ?: this.selectFirst("img")?.attr("src")
+        )
+        val quality = this.selectFirst("span.item-quality, span.mli-quality")?.text()?.trim().orEmpty()
         val isSeries = href.contains("/tvshows/") || a.attr("data-ptype") == "tvshows" || this.attr("data-ptype") == "tvshows"
 
         return if (isSeries) {
             newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
                 this.posterUrl = posterUrl
-                addQuality(quality)
+                if (quality.isNotBlank()) addQuality(quality)
             }
         } else {
             newMovieSearchResponse(title, href, TvType.Movie) {
                 this.posterUrl = posterUrl
-                addQuality(quality)
+                if (quality.isNotBlank()) addQuality(quality)
             }
         }
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/?s=$query", timeout = 30L).document
-        return document.select("div.display-item, div.module-item").mapNotNull { it.toSearchResult() }
+        val searchUrl = "$mainUrl/search/$query/"
+        val document = try {
+            app.get(searchUrl, timeout = 30L).document
+        } catch (_: Exception) {
+            app.get("$mainUrl/?s=$query", timeout = 30L).document
+        }
+        return document.select("div.item-box, div.display-item, div.module-item").mapNotNull {
+            it.toSearchResult()
+        }.distinctBy { it.url }
     }
 
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url, timeout = 30L).document
+        val isSeries = url.contains("/tvshows/") || document.select(".seasons-list, .episodes-list, div.content-episodes").isNotEmpty()
 
-        val title = document.selectFirst("h1.entry-title, h1.movie-title, h1")?.text()?.substringBefore("(")?.trim()
-            ?: document.selectFirst("div.item-desc-title h3, div.data h1")?.text()?.substringBefore("(")?.trim()
-            ?: document.selectFirst("meta[property='og:title']")?.attr("content")?.substringBefore("(")?.trim()
-            ?: document.selectFirst("title")?.text()?.substringBefore("(")?.substringBefore("-")?.trim()
-            ?: "Unknown"
+        val rawTitle = document.selectFirst("div.details-title h3, h1.entry-title, h1.movie-title, h1")?.text()?.trim().orEmpty()
+        val title = if (isSeries) rawTitle else rawTitle.substringBeforeLast("(").trim().ifBlank { rawTitle }
 
-        val poster = document.selectFirst("div.splash-bg img")?.attr("src")
-            ?: document.selectFirst("img.thumb")?.getImageAttr()
-            ?: document.selectFirst("meta[property='og:image']")?.attr("content")
+        val poster = fixUrlNull(
+            document.selectFirst("div.content-poster img, div.splash-bg img")?.attr("src")
+                ?: document.selectFirst("meta[property='og:image']")?.attr("content")
+        )
+        val bgposter = fixUrlNull(document.selectFirst("meta[property='og:image']")?.attr("content")?.replace("w780", "original"))
 
-        val description = document.selectFirst("div.desc p, div.entry-content p")?.text()?.trim()
+        val description = document.selectFirst("div.details-desc p, div.desc p, div.entry-content p")?.text()?.trim()
             ?: document.selectFirst("meta[property='og:description']")?.attr("content")
+        val tags = document.select("div.details-genre a, div.genres a, a[href*='/genre/']").map { it.text().trim() }.filter { it.isNotBlank() }
+        val actors = document.select("div.details-info p:contains(Stars) a, div.cast a").map { it.text().trim() }.filter { it.isNotBlank() }
+        val year = extractYear(document.selectFirst("div.details-info p:contains(Year), .release")?.text() ?: rawTitle)
+        val rating = Regex("""(\d+(\.\d+)?)""").find(document.selectFirst("span.data-imdb, .data-imdb")?.text().orEmpty())
+            ?.groupValues?.firstOrNull()?.toDoubleOrNull()
+        val trailerId = document.selectFirst("span.data-trailer[data-tid], a.btn-trailer[data-tid]")?.attr("data-tid")?.trim()
+        val trailerUrl = trailerId?.takeIf { it.isNotBlank() }?.let { "https://www.youtube.com/watch?v=$it" }
+            ?: document.selectFirst("meta[itemprop=embedUrl]")?.attr("content")
 
-        val year = Regex("""\b(19\d{2}|20\d{2})\b""").find(url + " " + title)?.groupValues?.getOrNull(1)?.toIntOrNull()
-            ?: document.selectFirst(".release, .item-desc-hl")?.text()?.let {
-                Regex("""\b(19\d{2}|20\d{2})\b""").find(it)?.groupValues?.getOrNull(1)?.toIntOrNull()
-            }
-
-        val rating = document.selectFirst(".data-imdb, .item-desc-hl")?.text()?.let {
-            Regex("""(\d+(?:\.\d+)?)""").find(it)?.groupValues?.getOrNull(1)?.toDoubleOrNull()
-        }
-
-        val genres = document.select("div.genres a, div.tagline a, a[href*='/genre/']").map { it.text().trim() }
-            .filter { it.isNotBlank() }
-
-        val isSeries = url.contains("/tvshows/") || document.select(".seasons-list, .episodes-list").isNotEmpty()
+        val recommendations = document.select("div.item-box, div.module-item, div.display-item")
+            .mapNotNull { it.toSearchResult() }
+            .filter { it.url != url }
+            .distinctBy { it.url }
 
         return if (isSeries) {
             val episodes = mutableListOf<Episode>()
-            val seasonElements = document.select("ul.seasons-list li a")
 
-            if (seasonElements.isNotEmpty()) {
-                seasonElements.forEach { seasonTag ->
-                    val seasonNum = seasonTag.attr("data-snum").toIntOrNull() ?: 1
-                    document.select("ul#season-listep-$seasonNum li a").forEach { link ->
-                        val epHref = fixUrl(link?.attr("href").orEmpty())
-                        if (epHref.isBlank()) return@forEach
-
-                        val epNum = link?.selectFirst(".ep-num")?.text()?.trim()?.toIntOrNull()
-                            ?: Regex("""ep(\d+)""").find(epHref)?.groupValues?.getOrNull(1)?.toIntOrNull()
-
-                        val epName = link?.selectFirst(".ep-title")?.text()?.trim()
-                            ?: "Episode ${epNum ?: ""}".trim()
-
-                        val epThumb = link?.selectFirst(".ep-thumb img")?.attr("src")
-
-                        episodes.add(
-                            newEpisode(epHref) {
-                                this.name = epName
-                                this.season = seasonNum
-                                this.episode = epNum
-                                this.posterUrl = epThumb ?: poster
-                            }
-                        )
-                    }
+            // Try Phisher episode list selector first
+            val episodeElements = document.select("div.content-episodes ul.episodes-list li")
+            if (episodeElements.isNotEmpty()) {
+                episodeElements.forEach { li ->
+                    li.toEpisode()?.let { episodes.add(it) }
                 }
             } else {
-                document.select("ul.episodes-list li a").forEach { link ->
-                    val epHref = fixUrl(link.attr("href"))
-                    if (epHref.isBlank()) return@forEach
-
-                    val epNum = link.selectFirst(".ep-num")?.text()?.trim()?.toIntOrNull()
-                        ?: Regex("""ep(\d+)""").find(epHref)?.groupValues?.getOrNull(1)?.toIntOrNull()
-
-                    val epName = link.selectFirst(".ep-title")?.text()?.trim()
-                        ?: "Episode ${epNum ?: ""}".trim()
-
-                    episodes.add(
-                        newEpisode(epHref) {
-                            this.name = epName
-                            this.episode = epNum
-                            this.posterUrl = poster
+                // Season list fallback
+                val seasonElements = document.select("ul.seasons-list li a")
+                if (seasonElements.isNotEmpty()) {
+                    seasonElements.forEach { seasonTag ->
+                        val seasonNum = seasonTag.attr("data-snum").toIntOrNull() ?: 1
+                        document.select("ul#season-listep-$seasonNum li a").forEach { link ->
+                            val epHref = fixUrl(link.attr("href"))
+                            if (epHref.isBlank()) return@forEach
+                            val epNum = link.selectFirst(".ep-num")?.text()?.trim()?.toIntOrNull()
+                                ?: Regex("""ep(\d+)""").find(epHref)?.groupValues?.getOrNull(1)?.toIntOrNull()
+                            val epName = link.selectFirst(".ep-title")?.text()?.trim() ?: "Episode ${epNum ?: ""}".trim()
+                            episodes.add(
+                                newEpisode(epHref) {
+                                    this.name = epName
+                                    this.season = seasonNum
+                                    this.episode = epNum
+                                    this.posterUrl = poster
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
 
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes.distinctBy { it.data }) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = bgposter
                 this.plot = description
-                this.tags = genres
+                this.tags = tags
                 this.year = year
+                this.recommendations = recommendations
                 if (rating != null) addScore(rating.toString(), 10)
+                addActors(actors)
+                addTrailer(trailerUrl)
             }
         } else {
             newMovieLoadResponse(title, url, TvType.Movie, url) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = bgposter
                 this.plot = description
-                this.tags = genres
+                this.tags = tags
                 this.year = year
+                this.recommendations = recommendations
                 if (rating != null) addScore(rating.toString(), 10)
+                addActors(actors)
+                addTrailer(trailerUrl)
             }
         }
     }
@@ -180,40 +185,30 @@ class PencuriMovieSubMalay : MainAPI() {
     ): Boolean {
         val document = app.get(data).document
 
-        val playerOptions = document.select("#playeroptionsul li.zetaflix_player_option")
-        playerOptions.forEach { opt ->
-            val post = opt.attr("data-post")
-            val nume = opt.attr("data-nume")
-            val type = opt.attr("data-type")
+        // Check playeroptionsul (both direct li and zetaflix_player_option)
+        document.select("#playeroptionsul > li, #playeroptionsul li").forEach { li ->
+            val post = li.attr("data-post").trim()
+            val nume = li.attr("data-nume").trim()
+            val type = li.attr("data-type").trim()
             if (post.isNotBlank() && nume.isNotBlank() && type.isNotBlank() && nume != "fake") {
                 try {
-                    val ajaxResp = app.post(
+                    val res = app.post(
                         "$mainUrl/wp-admin/admin-ajax.php",
-                        headers = mapOf(
-                            "X-Requested-With" to "XMLHttpRequest",
-                            "Referer" to data,
-                            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                        ),
                         data = mapOf(
                             "action" to "zeta_player_ajax",
                             "post" to post,
                             "nume" to nume,
                             "type" to type
-                        )
-                    ).text
-                    if (ajaxResp.isNotBlank()) {
-                        val json = JSONObject(ajaxResp)
-                        val embedHtml = json.optString("embed_url", "")
-                        val iframeSrc = Regex("""src=["']([^"']+)["']""").find(embedHtml)?.groupValues?.getOrNull(1)
-                            ?: if (embedHtml.startsWith("http")) embedHtml else null
+                        ),
+                        referer = data,
+                        headers = mapOf("X-Requested-With" to "XMLHttpRequest")
+                    ).parsedSafe<ZetaPlayerResponse>()?.embedUrl
 
-                        if (!iframeSrc.isNullOrBlank()) {
-                            val cleanSrc = iframeSrc.replace("\\/", "/")
-                            val fixedSrc = if (cleanSrc.startsWith("//")) "https:$cleanSrc" else cleanSrc
-                            if (fixedSrc.contains("abyss") || fixedSrc.contains("msmbot.club") || fixedSrc.contains("short.icu")) {
-                                AbyssExtractor().getUrl(fixedSrc, data, subtitleCallback, callback)
-                            }
-                            loadExtractor(fixedSrc, data, subtitleCallback, callback)
+                    if (!res.isNullOrBlank()) {
+                        val link = Jsoup.parse(res).selectFirst("iframe")?.attr("src")
+                            ?: if (res.startsWith("http")) res else null
+                        if (!link.isNullOrBlank()) {
+                            resolveStreamLink(link, data, subtitleCallback, callback)
                         }
                     }
                 } catch (_: Exception) {}
@@ -221,27 +216,67 @@ class PencuriMovieSubMalay : MainAPI() {
         }
 
         // Direct iframes fallback
-        document.select("iframe.metaframe, div.pframe iframe, iframe#trailer-view, .movieplay iframe").forEach { iframe ->
+        document.select("iframe.metaframe, div.pframe iframe, .movieplay iframe, .playcontent iframe").forEach { iframe ->
             val src = iframe.attr("src").ifBlank { iframe.attr("data-src") }
             if (src.isNotBlank() && !src.contains("youtube.com", true) && !src.contains("youtu.be", true) && !src.startsWith("about:")) {
-                val fixed = if (src.startsWith("//")) "https:$src" else src
-                if (fixed.contains("abyss") || fixed.contains("msmbot.club") || fixed.contains("short.icu")) {
-                    AbyssExtractor().getUrl(fixed, data, subtitleCallback, callback)
-                }
-                loadExtractor(fixed, data, subtitleCallback, callback)
+                resolveStreamLink(src, data, subtitleCallback, callback)
             }
         }
 
         return true
     }
 
-    private fun Element.getImageAttr(): String? {
-        return when {
-            this.hasAttr("data-original") -> this.attr("abs:data-original")
-            this.hasAttr("data-src") -> this.attr("abs:data-src")
-            this.hasAttr("data-lazy-src") -> this.attr("abs:data-lazy-src")
-            this.hasAttr("srcset") -> this.attr("abs:srcset").substringBefore(" ")
-            else -> this.attr("abs:src")
+    private suspend fun resolveStreamLink(
+        url: String,
+        referer: String,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ) {
+        val fixed = if (url.startsWith("//")) "https:$url" else url
+        if (fixed.contains("/#")) {
+            VidStack().getUrl(fixed, "", subtitleCallback, callback)
+        } else if (fixed.contains("abyss") || fixed.contains("msmbot.club") || fixed.contains("short.icu")) {
+            AbyssExtractor().getUrl(fixed, referer, subtitleCallback, callback)
+            loadExtractor(fixed, referer, subtitleCallback, callback)
+        } else {
+            loadExtractor(fixed, referer, subtitleCallback, callback)
         }
     }
+
+    private fun Element.toEpisode(): Episode? {
+        val anchor = selectFirst("a[href]") ?: return null
+        val href = fixUrl(anchor.attr("href"))
+        val epNum = selectFirst("span.ep-num")?.text()?.trim()?.toIntOrNull()
+        val title = selectFirst("span.ep-title")?.text()?.trim()
+        val poster = selectFirst("span.ep-thumb img")?.attr("src")?.let { fixUrlNull(it) }
+        val rawDate = selectFirst("span.ep-date")?.text()
+        val date = rawDate?.replace(".", "")?.let {
+            runCatching {
+                SimpleDateFormat("MMM dd, yyyy", Locale.ENGLISH).parse(it)
+            }.getOrNull()
+        }
+        val classSeason = classNames()
+            .firstNotNullOfOrNull { Regex("""ep-(\d+)-\d+""").find(it)?.groupValues?.getOrNull(1) }
+            ?.toIntOrNull()
+        val parentSeason = parent()?.id()?.substringAfter("season-listep-", "")?.toIntOrNull()
+        val season = classSeason ?: parentSeason
+
+        return newEpisode(href) {
+            this.name = title
+            this.posterUrl = poster
+            this.episode = epNum
+            this.season = season
+            addDate(date)
+        }
+    }
+
+    private fun extractYear(text: String?): Int? {
+        return Regex("""(19|20)\d{2}""").find(text.orEmpty())?.value?.toIntOrNull()
+    }
+
+    private data class ZetaPlayerResponse(
+        @param:JsonProperty("embed_url") val embedUrl: String? = null,
+        @param:JsonProperty("type") val type: String? = null,
+        @param:JsonProperty("msg") val msg: String? = null
+    )
 }
