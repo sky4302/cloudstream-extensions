@@ -36,6 +36,11 @@ jobs:
       - name: Build All Plugins
         run: ./gradlew make makePluginsJson
 
+      - name: Prepare Build Output
+        run: |
+          cp repo.json build/ 2>/dev/null || true
+          find . -name "*.cs3" -exec cp {} build/ \;
+
       - name: Deploy to Builds Branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:

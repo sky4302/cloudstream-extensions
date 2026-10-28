@@ -34,8 +34,8 @@ subprojects {
     apply(plugin = "com.lagradost.cloudstream3.gradle")
 
     cloudstream {
-        setRepo(System.getenv("GITHUB_REPOSITORY") ?: "https://github.com/cloudstream/extensions")
-        authors = listOf("CloudstreamUser")
+        setRepo(System.getenv("GITHUB_REPOSITORY") ?: "https://github.com/sky4302/cloudstream-extensions")
+        authors = listOf("sky4302")
     }
 
     android {
@@ -81,4 +81,20 @@ subprojects {
 
 task<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
+}
+
+val copyPlugins = tasks.register<Copy>("copyPlugins") {
+    from("repo.json")
+    subprojects.forEach { sub ->
+        from(sub.layout.buildDirectory) {
+            include("*.cs3")
+        }
+    }
+    into(rootProject.layout.buildDirectory)
+}
+
+gradle.projectsEvaluated {
+    tasks.named("makePluginsJson") {
+        finalizedBy(copyPlugins)
+    }
 }
