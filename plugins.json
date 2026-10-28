@@ -63,6 +63,28 @@
         "name": "Kuronime"
     },
     {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://tv12.lk21official.cc&sz=%size%",
+        "fileHash": "sha256-431baa83867f21347eea4b0b9db547dccc9981df88c9cb309b6bd8a1a201383a",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 37219,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "sky4302"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "AsianDrama"
+        ],
+        "version": 1,
+        "internalName": "LayarKaca",
+        "description": "LayarKaca21 (LK21) - Nonton Streaming Film & Series Sub Indo",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/LayarKaca.cs3",
+        "name": "LayarKaca"
+    },
+    {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
         "fileHash": "sha256-4897528ae3e79ece7ac70ac4c6994bced0e60e77e93e8a4e0786ec35b1c0e0cb",
         "apiVersion": 1,
@@ -108,10 +130,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://pencurimoviesubmalay26.site&sz=%size%",
-        "fileHash": "sha256-d550bb4d8b82045be62c9fd11c10a9513c07f85794412e0d633d3400e1c5ad9d",
+        "fileHash": "sha256-a26d3befc67e8de6257360e3fa5db891dc2a197b3e75f25779d3a129c3d08377",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 36388,
+        "fileSize": 40070,
         "status": 1,
         "language": "ms",
         "authors": [
