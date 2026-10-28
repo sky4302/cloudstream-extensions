@@ -1,0 +1,130 @@
+[
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://z2.idlixku.com&sz=%size%",
+        "fileHash": "sha256-685b6a7fd283083d48a05da4cab302e2ed54c029d63cd54f2d050f2eb4c1e950",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 49927,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "CloudstreamUser"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 1,
+        "internalName": "Idlix",
+        "description": "Idlix - Streaming Film & Serial TV Indonesia",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Idlix.cs3",
+        "name": "Idlix"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://m2.kuramanime.ing&sz=%size%",
+        "fileHash": "sha256-50a9e4568e3387f9b3b9a95c8699e0145c7d75a1ea5aa783776dada2ae29a538",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 25540,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "CloudstreamUser"
+        ],
+        "tvTypes": [
+            "Anime"
+        ],
+        "version": 1,
+        "internalName": "Kuramanime",
+        "description": "Kuramanime - Nonton Anime Subtitle Indonesia",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Kuramanime.cs3",
+        "name": "Kuramanime"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://kuronime.sbs&sz=%size%",
+        "fileHash": "sha256-e869c3e6d6f9e29ad8f654f17adc12526aa647a62a7441e88730af30738fab60",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 26348,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "CloudstreamUser"
+        ],
+        "tvTypes": [
+            "Anime",
+            "AnimeMovie",
+            "OVA"
+        ],
+        "version": 1,
+        "internalName": "Kuronime",
+        "description": "Kuronime - Nonton Anime Streaming & Download Sub Indo",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Kuronime.cs3",
+        "name": "Kuronime"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
+        "fileHash": "sha256-4897528ae3e79ece7ac70ac4c6994bced0e60e77e93e8a4e0786ec35b1c0e0cb",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 21419,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "sky4302"
+        ],
+        "tvTypes": [
+            "Anime",
+            "AnimeMovie",
+            "OVA"
+        ],
+        "version": 1,
+        "internalName": "Otakudesu",
+        "description": "Otakudesu - Nonton Anime Subtitle Indonesia",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Otakudesu.cs3",
+        "name": "Otakudesu"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://ww44.pencurimovie.baby&sz=%size%",
+        "fileHash": "sha256-dea1382101a2b4ff22d0543386a9ad8482cac3161bc893ffb079b0f4b26d5ab5",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 14622,
+        "status": 1,
+        "language": "ms",
+        "authors": [
+            "CloudstreamUser"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Anime"
+        ],
+        "version": 1,
+        "internalName": "PencuriMovie",
+        "description": "PencuriMovie - Streaming Filem & Siri Malaysia",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/PencuriMovie.cs3",
+        "name": "PencuriMovie"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://pencurimoviesubmalay26.site&sz=%size%",
+        "fileHash": "sha256-d550bb4d8b82045be62c9fd11c10a9513c07f85794412e0d633d3400e1c5ad9d",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 36388,
+        "status": 1,
+        "language": "ms",
+        "authors": [
+            "CloudstreamUser"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 1,
+        "internalName": "PencuriMovieSubMalay",
+        "description": "PencuriMovie Sub Malay - Filem & Drama Sarikata Melayu (ZetaFlix)",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/PencuriMovieSubMalay.cs3",
+        "name": "PencuriMovieSubMalay"
+    }
+]
