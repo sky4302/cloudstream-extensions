@@ -131,6 +131,7 @@ class Kuramanime : MainAPI() {
 
         return newAnimeLoadResponse(title, animeUrl, TvType.Anime) {
             this.posterUrl = poster
+            this.backgroundPosterUrl = poster
             this.plot = description
             this.tags = genres
             addEpisodes(DubStatus.Subbed, sortedEpisodes)

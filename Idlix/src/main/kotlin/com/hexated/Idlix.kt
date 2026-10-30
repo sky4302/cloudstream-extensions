@@ -50,6 +50,18 @@ class Idlix : MainAPI() {
         }
     }
 
+    private fun getBackdropUrl(path: String?, fallbackPath: String? = null): String? {
+        val raw = path?.trim()?.ifBlank { null }
+            ?: fallbackPath?.trim()?.ifBlank { null }
+            ?: return null
+        return when {
+            raw.startsWith("http://") || raw.startsWith("https://") -> raw
+            raw.startsWith("//") -> "https:$raw"
+            raw.startsWith("/") -> "https://image.tmdb.org/t/p/w1280$raw"
+            else -> "https://image.tmdb.org/t/p/w1280/$raw"
+        }
+    }
+
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
@@ -127,15 +139,23 @@ class Idlix : MainAPI() {
             ?: throw ErrorLoadingException("Invalid JSON")
 
         val title = data.title ?: "Unknown"
-        val poster = getPosterUrl(data.posterPath, data.backdropPath)
-        val backdrop = getPosterUrl(data.backdropPath, data.posterPath)
+        val rawBackdrop = data.backdropPath ?: data.backdrops?.firstOrNull()
+        val poster = getPosterUrl(data.posterPath, rawBackdrop)
+        val backdrop = getBackdropUrl(rawBackdrop, data.posterPath)
 
         val year = (data.releaseDate ?: data.firstAirDate)
             ?.substringBefore("-")
             ?.toIntOrNull()
 
         val tags = data.genres?.mapNotNull { it.name } ?: emptyList()
-        val logourl = "https://image.tmdb.org/t/p/original" + data.logoPath
+        val logourl = data.logoPath?.trim()?.ifBlank { null }?.let { raw ->
+            when {
+                raw.startsWith("http://") || raw.startsWith("https://") -> raw
+                raw.startsWith("//") -> "https:$raw"
+                raw.startsWith("/") -> "https://image.tmdb.org/t/p/original$raw"
+                else -> "https://image.tmdb.org/t/p/original/$raw"
+            }
+        }
         val actors = data.cast?.map {
             Actor(it.name ?: "", it.profilePath?.let { p -> "https://image.tmdb.org/t/p/w185$p" })
         } ?: emptyList()
@@ -254,7 +274,7 @@ class Idlix : MainAPI() {
                 this.score = Score.from10(rating?.toString())
                 addActors(actors)
                 addTrailer(trailer)
-                addTMDbId(data.tmdbId)
+                addTMDbId(data.tmdbId?.toString())
                 addImdbId(data.imdbId)
                 this.recommendations = recommendations
             }
@@ -274,7 +294,7 @@ class Idlix : MainAPI() {
                 this.score = Score.from10(rating?.toString())
                 addActors(actors)
                 addTrailer(trailer)
-                addTMDbId(data.tmdbId)
+                addTMDbId(data.tmdbId?.toString())
                 addImdbId(data.imdbId)
                 this.recommendations = recommendations
             }

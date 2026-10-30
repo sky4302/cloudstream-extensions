@@ -129,6 +129,7 @@ class Otakudesu : MainAPI() {
         return if (isMovie && episodes.isEmpty()) {
             newMovieLoadResponse(title, url, TvType.AnimeMovie, url) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = poster
                 this.plot = synopsis
                 this.tags = genres
                 if (rating != null) addScore(rating, 10)
@@ -136,6 +137,7 @@ class Otakudesu : MainAPI() {
         } else {
             newTvSeriesLoadResponse(title, url, TvType.Anime, episodes.reversed().distinctBy { it.data }) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = poster
                 this.plot = synopsis
                 this.tags = genres
                 if (rating != null) addScore(rating, 10)

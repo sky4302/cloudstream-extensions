@@ -206,6 +206,7 @@ class LayarKacaProvider : MainAPI() {
 
             return newTvSeriesLoadResponse(title, properUrl, TvType.TvSeries, episodes.distinctBy { it.data }) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = poster
                 this.plot = description
                 this.tags = tags
                 this.year = year
@@ -216,6 +217,7 @@ class LayarKacaProvider : MainAPI() {
         } else {
             return newMovieLoadResponse(title, properUrl, TvType.Movie, properUrl) {
                 this.posterUrl = poster
+                this.backgroundPosterUrl = poster
                 this.plot = description
                 this.tags = tags
                 this.year = year

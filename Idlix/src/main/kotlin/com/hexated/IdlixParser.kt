@@ -69,43 +69,43 @@ data class DetailResponse(
     val id: String? = null,
     val title: String? = null,
     val slug: String? = null,
-    @JsonProperty("imdb_id")
+    @JsonAlias("imdb_id", "imdbId")
     val imdbId: String? = null,
-    @JsonProperty("tmdb_id")
-    val tmdbId: String? = null,
+    @JsonAlias("tmdb_id", "tmdbId")
+    val tmdbId: Any? = null,
     val overview: String? = null,
     val tagline: String? = null,
-    @JsonProperty("poster_path")
+    @JsonAlias("poster_path", "posterPath", "poster", "image")
     val posterPath: String? = null,
-    @JsonProperty("backdrop_path")
+    @JsonAlias("backdrop_path", "backdropPath", "backdrop")
     val backdropPath: String? = null,
-    @JsonProperty("logo_path")
+    @JsonAlias("logo_path", "logoPath", "logo")
     val logoPath: String? = null,
     val backdrops: List<String>? = null,
-    @JsonProperty("release_date")
+    @JsonAlias("release_date", "releaseDate")
     val releaseDate: String? = null,
-    @JsonProperty("first_air_date")
+    @JsonAlias("first_air_date", "firstAirDate")
     val firstAirDate: String? = null,
     val runtime: Int? = null,
-    @JsonProperty("vote_average")
+    @JsonAlias("vote_average", "voteAverage")
     val voteAverage: Any? = null,
     val popularity: Any? = null,
-    @JsonProperty("original_language")
+    @JsonAlias("original_language", "originalLanguage")
     val originalLanguage: String? = null,
     val country: String? = null,
     val status: String? = null,
-    @JsonProperty("trailer_url")
+    @JsonAlias("trailer_url", "trailerUrl")
     val trailerUrl: String? = null,
     val quality: String? = null,
     val director: String? = null,
     val genres: List<Genre>? = null,
     val cast: List<Cast>? = null,
     val seasons: List<Season>? = null,
-    @JsonProperty("first_season")
+    @JsonAlias("default_season", "defaultSeason", "first_season", "firstSeason")
     val firstSeason: Season? = null,
-    @JsonProperty("view_count")
+    @JsonAlias("view_count", "viewCount")
     val viewCount: Any? = null,
-    @JsonProperty("is_published")
+    @JsonAlias("is_published", "isPublished")
     val isPublished: Boolean? = null
 )
 
@@ -119,25 +119,32 @@ data class Cast(
     val id: String? = null,
     val name: String? = null,
     val character: String? = null,
+    @JsonAlias("profile_path", "profilePath")
     val profilePath: String? = null
 )
 
 data class Season(
     val id: String? = null,
+    @JsonAlias("season_number", "seasonNumber")
     val seasonNumber: Int? = null,
     val name: String? = null,
+    @JsonAlias("poster_path", "posterPath")
     val posterPath: String? = null,
     val episodes: List<IdlixEpisode>? = null
 )
 
 data class IdlixEpisode(
     val id: String? = null,
+    @JsonAlias("episode_number", "episodeNumber")
     val episodeNumber: Int? = null,
     val name: String? = null,
     val overview: String? = null,
+    @JsonAlias("still_path", "stillPath")
     val stillPath: String? = null,
+    @JsonAlias("air_date", "airDate")
     val airDate: String? = null,
     val runtime: Int? = null,
+    @JsonAlias("vote_average", "voteAverage")
     val voteAverage: Any? = null
 )
 
