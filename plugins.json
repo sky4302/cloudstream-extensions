@@ -1,10 +1,10 @@
 [
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://z2.idlixku.com&sz=%size%",
-        "fileHash": "sha256-685b6a7fd283083d48a05da4cab302e2ed54c029d63cd54f2d050f2eb4c1e950",
+        "fileHash": "sha256-b4bd55c91be432fe4403c39ed6e316151c3f6643669f14086df64c1e86f8d809",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 49927,
+        "fileSize": 50792,
         "status": 1,
         "language": "id",
         "authors": [
@@ -22,10 +22,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://m2.kuramanime.ing&sz=%size%",
-        "fileHash": "sha256-50a9e4568e3387f9b3b9a95c8699e0145c7d75a1ea5aa783776dada2ae29a538",
+        "fileHash": "sha256-b0662729511652833438b84e39e7aabbf661e1ee8ff7dde1ec3b6c936d2498c3",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 25540,
+        "fileSize": 25566,
         "status": 1,
         "language": "id",
         "authors": [
@@ -64,10 +64,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://tv12.lk21official.cc&sz=%size%",
-        "fileHash": "sha256-431baa83867f21347eea4b0b9db547dccc9981df88c9cb309b6bd8a1a201383a",
+        "fileHash": "sha256-c38d2b887b22850b9a5458166fc9d0f630f43dd4bec9770eb8d45228364d644b",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 37219,
+        "fileSize": 37257,
         "status": 1,
         "language": "id",
         "authors": [
@@ -86,10 +86,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
-        "fileHash": "sha256-4897528ae3e79ece7ac70ac4c6994bced0e60e77e93e8a4e0786ec35b1c0e0cb",
+        "fileHash": "sha256-f452d983329c49446023b198babc6637853480b66e445f38281cd8a88e5a3935",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 21419,
+        "fileSize": 21461,
         "status": 1,
         "language": "id",
         "authors": [
