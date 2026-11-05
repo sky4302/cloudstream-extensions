@@ -43,16 +43,30 @@ class DrakorID : MainAPI() {
         if (url.isNullOrBlank()) return null
         val fixed = fixUrlNull(url) ?: return null
 
-        val convertRegex = Regex("""/convert/([A-Za-z0-9_-]+)(?:--)?/\d+x\d+""")
+        val convertRegex = Regex("""/convert/([A-Za-z0-9_-]+)/\d+x\d+""")
         val match = convertRegex.find(fixed)
         if (match != null) {
             try {
-                var b64 = match.groupValues[1].replace('-', '+').replace('_', '/')
+                var rawToken = match.groupValues[1]
+                val padding = when {
+                    rawToken.endsWith("--") -> {
+                        rawToken = rawToken.removeSuffix("--")
+                        "=="
+                    }
+                    rawToken.endsWith("-") -> {
+                        rawToken = rawToken.removeSuffix("-")
+                        "="
+                    }
+                    else -> ""
+                }
+                var b64 = rawToken.replace('-', '+').replace('_', '/') + padding
                 while (b64.length % 4 != 0) {
                     b64 += "="
                 }
-                val decoded = String(Base64.decode(b64, Base64.DEFAULT), StandardCharsets.UTF_8)
-                if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+                val decoded = String(Base64.decode(b64, Base64.DEFAULT), StandardCharsets.UTF_8).trim()
+                if ((decoded.startsWith("http://") || decoded.startsWith("https://")) &&
+                    (decoded.endsWith(".jpg", ignoreCase = true) || decoded.endsWith(".jpeg", ignoreCase = true) ||
+                     decoded.endsWith(".png", ignoreCase = true) || decoded.endsWith(".webp", ignoreCase = true))) {
                     return decoded
                 }
             } catch (_: Exception) {}
@@ -68,12 +82,20 @@ class DrakorID : MainAPI() {
         return fixed
     }
 
+    private fun cleanTitle(raw: String): String {
+        return raw
+            .replace(Regex("""\s*\(\d{4}\)"""), "")
+            .replace(Regex("""(?i)\s*sub\s*indo.*"""), "")
+            .replace(Regex("""(?i)\s*-\s*drakor.*"""), "")
+            .trim()
+    }
+
     private fun Element.toSearchResult(): SearchResponse? {
         val link = this.selectFirst("a.movie-list-card__media, h5.movie-list-card__title a, a[href*='/nonton/']")?.attr("href")
             ?: return null
         val properUrl = fixUrl(link)
 
-        val title = this.selectFirst(".movie-list-card__title")?.attr("data-original-title")?.trim()
+        val rawTitle = this.selectFirst(".movie-list-card__title")?.attr("data-original-title")?.trim()
             ?.ifBlank { null }
             ?: this.selectFirst(".movie-list-card__img")?.attr("alt")?.trim()?.ifBlank { null }
             ?: this.selectFirst(".movie-list-card__title a, .movie-list-card__title, h5")?.text()?.trim()
@@ -84,20 +106,20 @@ class DrakorID : MainAPI() {
         }
         val poster = fixPosterUrl(rawPoster)
 
-        val yearMatch = Regex("""\((\d{4})\)""").find(title)
+        val yearMatch = Regex("""\((\d{4})\)""").find(rawTitle)
         val year = yearMatch?.groupValues?.getOrNull(1)?.toIntOrNull()
-        val cleanTitle = title.replace(Regex("""\s*\(\d{4}\)"""), "").trim()
+        val title = cleanTitle(rawTitle)
 
         val isMovie = properUrl.contains("/film-") || this.selectFirst(".movie-list-card__title")?.text()?.contains("Movie", ignoreCase = true) == true
 
         val tvType = if (isMovie) TvType.Movie else TvType.AsianDrama
         return if (isMovie) {
-            newMovieSearchResponse(cleanTitle, properUrl, tvType) {
+            newMovieSearchResponse(title, properUrl, tvType) {
                 this.posterUrl = poster
                 this.year = year
             }
         } else {
-            newTvSeriesSearchResponse(cleanTitle, properUrl, tvType) {
+            newTvSeriesSearchResponse(title, properUrl, tvType) {
                 this.posterUrl = poster
                 this.year = year
             }
@@ -138,13 +160,13 @@ class DrakorID : MainAPI() {
         val properUrl = fixUrl(url)
         val document = app.get(properUrl, timeout = 25L, headers = mapOf("Referer" to "$mainUrl/")).document
 
-        val title = document.selectFirst("meta[property='og:title']")?.attr("content")?.trim()
+        val rawTitle = document.selectFirst("meta[property='og:title']")?.attr("content")?.trim()
             ?: Regex("""var\s+mTitle\s*=\s*["']([^"']+)["']""").find(document.html())?.groupValues?.get(1)
             ?: document.selectFirst("h1.movie-detail-title, .movie-detail-title, h1")?.text()?.trim()
             ?: "Unknown"
 
-        val cleanTitle = title.replace(Regex("""\s*\(\d{4}\)"""), "").trim()
-        val year = Regex("""\((\d{4})\)""").find(title)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        val year = Regex("""\((\d{4})\)""").find(rawTitle)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        val title = cleanTitle(rawTitle)
 
         val rawPoster = document.selectFirst("meta[property='og:image']")?.attr("content")
             ?: document.selectFirst(".movie-detail-poster img, .movie-detail-poster, img")?.attr("src")
@@ -186,13 +208,16 @@ class DrakorID : MainAPI() {
             else it.toSearchResult()
         }.distinctBy { it.url }
 
-        val tags = document.select("a[href*='/kategori/'], .movie-detail-genres a, .genres a").map { it.text().trim() }.filter { it.isNotBlank() }
+        val tags = document.select("a[href*='/kategori/'], .movie-detail-genres a, .genres a")
+            .map { it.text().trim() }
+            .filter { it.isNotBlank() && !it.matches(Regex("""\d{4}""")) }
+            .distinct()
 
         val rating = document.selectFirst(".movie-detail-rating, .movie-list-card__rating")?.text()?.trim()?.toDoubleOrNull()
 
         return if (isMovie) {
             val movieData = EpisodeData(slug = slug, episode = 1).toJson()
-            newMovieLoadResponse(cleanTitle, properUrl, TvType.Movie, movieData) {
+            newMovieLoadResponse(title, properUrl, TvType.Movie, movieData) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = poster
                 this.year = year
@@ -202,7 +227,7 @@ class DrakorID : MainAPI() {
                 if (rating != null) addScore(rating.toString(), 10)
             }
         } else {
-            newTvSeriesLoadResponse(cleanTitle, properUrl, TvType.AsianDrama, episodes.sortedBy { it.episode }) {
+            newTvSeriesLoadResponse(title, properUrl, TvType.AsianDrama, episodes.sortedBy { it.episode }) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = poster
                 this.year = year
