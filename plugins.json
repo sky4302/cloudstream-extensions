@@ -85,10 +85,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://tv12.lk21official.cc&sz=%size%",
-        "fileHash": "sha256-c38d2b887b22850b9a5458166fc9d0f630f43dd4bec9770eb8d45228364d644b",
+        "fileHash": "sha256-0fba658675b1b293ccb36338a3e75b92e184f80bf9709228ddd2d7879f287334",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 37257,
+        "fileSize": 38610,
         "status": 1,
         "language": "id",
         "authors": [
@@ -99,7 +99,7 @@
             "TvSeries",
             "AsianDrama"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "LayarKaca",
         "description": "LayarKaca21 (LK21) - Nonton Streaming Film & Series Sub Indo",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/LayarKaca.cs3",
