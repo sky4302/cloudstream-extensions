@@ -101,7 +101,7 @@ open class VideoNode : ExtractorApi() {
     ) {
         val cleanUrl = url.substringBefore("?")
         val hostMatch = Regex("""(?:iframe\d*|player)/([^/]+)/([^/?#]+)""").find(cleanUrl)
-        val host = hostMatch?.groupValues?.getOrNull(1) ?: "p2p"
+        val host = hostMatch?.groupValues?.getOrNull(1) ?: if (cleanUrl.contains("/p2p/")) "p2p" else if (cleanUrl.contains("/cast/")) "cast" else "p2p"
         val id = hostMatch?.groupValues?.getOrNull(2) ?: cleanUrl.substringAfterLast("/")
         val pageRef = referer ?: "https://tv12.lk21official.cc/"
 
