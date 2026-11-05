@@ -8,6 +8,7 @@ A collection of extensions/plugins for the **[CloudStream 3](https://github.com/
 
 | Provider | Target Website | Media Types | Language | Key Features |
 | :--- | :--- | :--- | :--- | :--- |
+| **DrakorID** | `https://drakorid.co/` | Asian Drama, Movies | Indonesian (`id`) | Premier Asian and Korean drama catalog (*Terbaru, Drama Korea, Film Korea, Drama China, Drama Jepang, Drama Thailand, Variety Show, Romance, Action, Comedy*), HLS `.m3u8` stream extraction via Bunny player base64, and high-speed direct MP4 CDN downloads (360p, 480p, 720p). |
 | **Idlix** | `https://z2.idlixku.com/movie` | Movies & TV Series | Indonesian (`id`) | API-driven catalog, multi-season & episode support, dynamic gate/claim token resolver, direct `.m3u8` streams, curated carousels (*Latest Movies*, *Latest TV Series*, *Netflix*, *Disney+*, *HBO*, *Apple TV+*, *Amazon Prime*). |
 | **LayarKaca (LK21)** | `https://tv12.lk21official.cc/` | Movies, TV Series, Asian Drama | Indonesian (`id`) | Full LayarKaca21 & Nontondrama scraping, homepage carousels (*Film Terpopuler, IMDb Rating, Terbanyak Komentar, Upload Terbaru, Series Terbaru, Film Asian Terbaru*), dynamic `VideoNode` / `playcdn.de` verify API resolution, Hownetwork, and Turbovid HLS extractors. |
 | **PencuriMovie** | `https://ww44.pencurimovie.baby/` | Movies & TV Series | Malay (`ms`) | MovieMo WordPress engine, rich category carousels (*Latest Movies*, *TV Series*, *Most Rating*, *Top IMDB*, and country filters: *Malaysia, Indonesia, India, Japan, Thailand, China*). |
@@ -39,6 +40,7 @@ https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/repo.jso
    - **Repository URL**: `https://is.gd/skycs3`
 4. Tap **Download Repository**.
 5. Go to the Extensions tab and click **Install** on your desired providers:
+   - `DrakorID`
    - `Idlix`
    - `LayarKaca`
    - `PencuriMovie`
@@ -53,6 +55,11 @@ https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/repo.jso
 
 ```text
 cloudstream repo/
+├── DrakorID/                   # DrakorID extension (Korean & Asian drama, HLS & direct MP4)
+│   ├── build.gradle.kts
+│   └── src/main/kotlin/com/hexated/
+│       ├── DrakorID.kt
+│       └── DrakorIDPlugin.kt
 ├── Idlix/                      # Idlix extension (API catalog, streaming platforms)
 │   ├── build.gradle.kts
 │   └── src/main/kotlin/com/hexated/
