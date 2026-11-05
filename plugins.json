@@ -107,10 +107,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
-        "fileHash": "sha256-f452d983329c49446023b198babc6637853480b66e445f38281cd8a88e5a3935",
+        "fileHash": "sha256-b4c3e308230d12b960add9f3ee0e8a28fb5c17b33a03d2056a2c64841c405119",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 21461,
+        "fileSize": 23034,
         "status": 1,
         "language": "id",
         "authors": [
@@ -121,7 +121,7 @@
             "AnimeMovie",
             "OVA"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "Otakudesu",
         "description": "Otakudesu - Nonton Anime Subtitle Indonesia",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Otakudesu.cs3",
