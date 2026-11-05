@@ -43,7 +43,7 @@ class DrakorID : MainAPI() {
         if (url.isNullOrBlank()) return null
         val fixed = fixUrlNull(url) ?: return null
 
-        val convertRegex = Regex("""/convert/([A-Za-z0-9_-]+)/\d+x\d+""")
+        val convertRegex = Regex("""/convert/([A-Za-z0-9_-]+)/d+xd+""")
         val match = convertRegex.find(fixed)
         if (match != null) {
             try {
@@ -70,7 +70,7 @@ class DrakorID : MainAPI() {
                     return decoded
                 }
             } catch (_: Exception) {}
-            return fixed.replace(Regex("""/\d+x\d+/"""), "/800x800/")
+            return fixed.replace(Regex("""/d+xd+/"""), "/800x800/")
         }
 
         if (fixed.contains("/180x200/")) {
@@ -158,7 +158,7 @@ class DrakorID : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val properUrl = fixUrl(url)
+        val properUrl = if (url.endsWith("/")) url else "$url/"
         val document = app.get(properUrl, timeout = 25L, headers = mapOf("Referer" to "$mainUrl/")).document
 
         val rawTitle = document.selectFirst("meta[property='og:title']")?.attr("content")?.trim()
@@ -181,6 +181,8 @@ class DrakorID : MainAPI() {
         val mTipe = Regex("""var\s+mTipe\s*=\s*(\d+)""").find(html)?.groupValues?.get(1)?.toIntOrNull()
         val slug = Regex("""var\s+link\s*=\s*["']([^"']+)["']""").find(html)?.groupValues?.get(1)
             ?: properUrl.removeSuffix("/").substringAfterLast("/")
+        val mId = Regex("""var\s+mId\s*=\s*["']?(\d+)["']?""").find(html)?.groupValues?.get(1)?.toIntOrNull()
+        val token = Regex("""var\s+token\s*=\s*["']([^"']+)["']""").find(html)?.groupValues?.get(1)
 
         val epElements = document.select("#modalPilihEpisode .episode-picker-grid button.episode-pick-item, button.episode-pick-item")
         val episodes = ArrayList<Episode>()
@@ -191,7 +193,12 @@ class DrakorID : MainAPI() {
                     ?: Regex("""\d+""").find(btn.text())?.value?.toIntOrNull()
                     ?: continue
                 val epLabel = btn.attr("data-ep-label").ifBlank { btn.text() }.trim()
-                val epData = EpisodeData(slug = slug, episode = epNum).toJson()
+                val epData = EpisodeData(
+                    slug = slug,
+                    episode = epNum,
+                    mId = mId,
+                    token = token
+                ).toJson()
                 episodes.add(
                     newEpisode(epData) {
                         this.name = if (epLabel.isNotBlank()) epLabel else "Episode $epNum"
@@ -217,7 +224,12 @@ class DrakorID : MainAPI() {
         val rating = document.selectFirst(".movie-detail-rating, .movie-list-card__rating")?.text()?.trim()?.toDoubleOrNull()
 
         return if (isMovie) {
-            val movieData = EpisodeData(slug = slug, episode = 1).toJson()
+            val movieData = EpisodeData(
+                slug = slug,
+                episode = 1,
+                mId = mId,
+                token = token
+            ).toJson()
             newMovieLoadResponse(title, properUrl, TvType.Movie, movieData) {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = poster
@@ -319,16 +331,67 @@ class DrakorID : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val (slug, episode) = try {
-            val epData = AppUtils.parseJson<EpisodeData>(data)
-            epData.slug to epData.episode
+        val epData = try {
+            AppUtils.parseJson<EpisodeData>(data)
         } catch (_: Exception) {
             val s = if (data.contains("/")) data.removeSuffix("/").substringAfterLast("/") else data
-            s to 1
+            EpisodeData(slug = s, episode = 1)
         }
 
+        val slug = epData.slug
+        val episode = epData.episode
         var foundLinks = false
 
+        // 1. Direct API stream resolution via myapi/episode_detail.php
+        if (epData.mId != null && !epData.token.isNullOrBlank()) {
+            try {
+                val apiRes = app.post(
+                    "$mainUrl/myapi/episode_detail.php",
+                    data = mapOf(
+                        "token" to epData.token,
+                        "id" to epData.mId.toString(),
+                        "episode" to episode.toString()
+                    ),
+                    headers = mapOf(
+                        "Referer" to "$mainUrl/nonton/$slug/",
+                        "Origin" to mainUrl,
+                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    ),
+                    timeout = 20L
+                ).parsedSafe<EpisodeDetailResponse>()
+
+                val streamingId = apiRes?.streaming?.ifBlank { null }
+                    ?: apiRes?.streamingPremium?.removePrefix("http://admin.drakor.la/go/files/")?.removePrefix("https://admin.drakor.la/go/files/")?.ifBlank { null }
+
+                if (!streamingId.isNullOrBlank()) {
+                    val directUrl = "http://admin.drakor.la/go/files/$streamingId"
+                    val fileCheck = app.get(directUrl, timeout = 15L, headers = mapOf("Referer" to "$mainUrl/"))
+                    val finalStreamUrl = fileCheck.url
+
+                    if (finalStreamUrl.isNotBlank()) {
+                        callback.invoke(
+                            newExtractorLink(
+                                name,
+                                "$name Direct Server",
+                                finalStreamUrl,
+                                INFER_TYPE
+                            ) {
+                                this.referer = "$mainUrl/"
+                                this.headers = mapOf(
+                                    "Referer" to "$mainUrl/",
+                                    "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                                )
+                            }
+                        )
+                        foundLinks = true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(name, "Error calling episode_detail API: ${e.message}")
+            }
+        }
+
+        // 2. Watch endpoints (watch-lite, watch-fast, watch-max)
         val watchUrls = listOf(
             "$mainUrl/watch-lite/$slug/$episode",
             "$mainUrl/watch-fast/$slug/$episode",
@@ -370,6 +433,10 @@ class DrakorID : MainAPI() {
                                     INFER_TYPE
                                 ) {
                                     this.referer = "$mainUrl/"
+                                    this.headers = mapOf(
+                                        "Referer" to "$mainUrl/",
+                                        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                                    )
                                 }
                             )
                             foundLinks = true
@@ -381,6 +448,7 @@ class DrakorID : MainAPI() {
             }
         }
 
+        // 3. Download endpoints (download-lite, download-fast)
         val dlUrls = listOf(
             "$mainUrl/download-lite/$slug/$episode",
             "$mainUrl/download-fast/$slug/$episode"
@@ -417,6 +485,10 @@ class DrakorID : MainAPI() {
                             INFER_TYPE
                         ) {
                             this.referer = "$mainUrl/"
+                            this.headers = mapOf(
+                                "Referer" to "$mainUrl/",
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            )
                             this.quality = quality
                         }
                     )
@@ -433,5 +505,14 @@ class DrakorID : MainAPI() {
 
 data class EpisodeData(
     @JsonProperty("slug") val slug: String,
-    @JsonProperty("episode") val episode: Int
+    @JsonProperty("episode") val episode: Int,
+    @JsonProperty("mId") val mId: Int? = null,
+    @JsonProperty("token") val token: String? = null
+)
+
+data class EpisodeDetailResponse(
+    @JsonProperty("status") val status: Int? = null,
+    @JsonProperty("streaming") val streaming: String? = null,
+    @JsonProperty("streaming_premium") val streamingPremium: String? = null,
+    @JsonProperty("img") val img: String? = null
 )
