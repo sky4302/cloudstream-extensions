@@ -87,6 +87,7 @@ class DrakorID : MainAPI() {
             .replace(Regex("""\s*\(\d{4}\)"""), "")
             .replace(Regex("""(?i)\s*sub\s*indo.*"""), "")
             .replace(Regex("""(?i)\s*-\s*drakor.*"""), "")
+            .replace(Regex("""\.\.$"""), "")
             .trim()
     }
 
@@ -239,6 +240,79 @@ class DrakorID : MainAPI() {
         }
     }
 
+    companion object {
+        private var sessionCookies: MutableMap<String, String> = mutableMapOf()
+    }
+
+    private suspend fun refreshSession(): Map<String, String> {
+        return try {
+            val headers = mapOf(
+                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer" to "$mainUrl/"
+            )
+            val regPage = app.get("$mainUrl/register", headers = headers, timeout = 20L)
+            val csrf = Regex("""name="csrf"\s+value="([^"]+)"""").find(regPage.text)?.groupValues?.get(1) ?: ""
+
+            val newCookies = mutableMapOf<String, String>()
+            newCookies.putAll(regPage.cookies)
+
+            val randId = (100000..999999).random()
+            val randEmail = "cs_guest_${System.currentTimeMillis()}_$randId@gmail.com"
+
+            val regRes = app.post(
+                "$mainUrl/register",
+                data = mapOf(
+                    "nama" to "User $randId",
+                    "email" to randEmail,
+                    "password" to "P@ss_$randId",
+                    "csrf" to csrf
+                ),
+                cookies = newCookies,
+                headers = mapOf(
+                    "Referer" to "$mainUrl/register",
+                    "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                ),
+                timeout = 20L
+            )
+
+            newCookies.putAll(regRes.cookies)
+            sessionCookies = newCookies
+            newCookies
+        } catch (e: Exception) {
+            Log.e(name, "Error refreshing session: ${e.message}")
+            sessionCookies
+        }
+    }
+
+    private suspend fun getSession(forceRefresh: Boolean = false): Map<String, String> {
+        if (forceRefresh || sessionCookies.isEmpty()) {
+            return refreshSession()
+        }
+        return sessionCookies
+    }
+
+    private suspend fun fetchPage(url: String, isRetry: Boolean = false): String {
+        val cookies = getSession(forceRefresh = isRetry)
+        val headers = mapOf(
+            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Referer" to "$mainUrl/"
+        )
+        return try {
+            val res = app.get(url, headers = headers, cookies = cookies, timeout = 25L)
+            val html = res.text
+            val isBlocked = html.contains("belum login", ignoreCase = true) ||
+                            html.contains("batas maksimal", ignoreCase = true) ||
+                            html.contains("Opps, Ada Kesalahan", ignoreCase = true)
+            if (isBlocked && !isRetry) {
+                fetchPage(url, isRetry = true)
+            } else {
+                html
+            }
+        } catch (e: Exception) {
+            if (!isRetry) fetchPage(url, isRetry = true) else ""
+        }
+    }
+
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -253,98 +327,104 @@ class DrakorID : MainAPI() {
             s to 1
         }
 
-        val watchUrl = "$mainUrl/watch-lite/$slug/$episode"
-        val dlUrl = "$mainUrl/download-lite/$slug/$episode"
-        val headers = mapOf(
-            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer" to "$mainUrl/"
-        )
-
         var foundLinks = false
 
-        // 1. Extract HLS streams from watch-lite
-        try {
-            val watchRes = app.get(watchUrl, headers = headers, timeout = 25L)
-            val watchHtml = watchRes.text
-            val iframeMatches = Regex("""<iframe\b[^>]*src=["']([^"']+)["']""", RegexOption.IGNORE_CASE).findAll(watchHtml)
-            for (m in iframeMatches) {
-                val iframeSrc = m.groupValues[1]
-                val vParam = Regex("""[?&]v=([^&]+)""").find(iframeSrc)?.groupValues?.get(1) ?: continue
-                val decodedStream = try {
-                    var b64 = vParam.replace('-', '+').replace('_', '/')
-                    while (b64.length % 4 != 0) b64 += "="
-                    String(Base64.decode(b64, Base64.DEFAULT), StandardCharsets.UTF_8).trim()
-                } catch (_: Exception) {
-                    null
-                }
+        val watchUrls = listOf(
+            "$mainUrl/watch-lite/$slug/$episode",
+            "$mainUrl/watch-fast/$slug/$episode",
+            "$mainUrl/watch-max/$slug/$episode"
+        )
 
-                if (!decodedStream.isNullOrBlank() && (decodedStream.startsWith("http://") || decodedStream.startsWith("https://"))) {
-                    if (decodedStream.contains(".m3u8")) {
-                        M3u8Helper.generateM3u8(
-                            name,
-                            decodedStream,
-                            "$mainUrl/"
-                        ).forEach { link ->
-                            callback.invoke(link)
+        for (watchUrl in watchUrls) {
+            try {
+                val watchHtml = fetchPage(watchUrl)
+                val iframeMatches = Regex("""<iframe\b[^>]*src=["']([^"']+)["']""", RegexOption.IGNORE_CASE).findAll(watchHtml)
+                for (m in iframeMatches) {
+                    val iframeSrc = m.groupValues[1]
+                    val vParam = Regex("""[?&]v=([^&]+)""").find(iframeSrc)?.groupValues?.get(1) ?: continue
+                    val decodedStream = try {
+                        var b64 = vParam.replace('-', '+').replace('_', '/')
+                        while (b64.length % 4 != 0) b64 += "="
+                        String(Base64.decode(b64, Base64.DEFAULT), StandardCharsets.UTF_8).trim()
+                    } catch (_: Exception) {
+                        null
+                    }
+
+                    if (!decodedStream.isNullOrBlank() && (decodedStream.startsWith("http://") || decodedStream.startsWith("https://"))) {
+                        val serverName = if (watchUrl.contains("fast")) "Fast" else if (watchUrl.contains("max")) "Max" else "Lite"
+                        if (decodedStream.contains(".m3u8")) {
+                            M3u8Helper.generateM3u8(
+                                name,
+                                decodedStream,
+                                "$mainUrl/"
+                            ).forEach { link ->
+                                callback.invoke(link)
+                                foundLinks = true
+                            }
+                        } else {
+                            callback.invoke(
+                                newExtractorLink(
+                                    name,
+                                    "$name HLS $serverName",
+                                    decodedStream,
+                                    INFER_TYPE
+                                ) {
+                                    this.referer = "$mainUrl/"
+                                }
+                            )
                             foundLinks = true
                         }
-                    } else {
-                        callback.invoke(
-                            newExtractorLink(
-                                name,
-                                "$name HLS",
-                                decodedStream,
-                                INFER_TYPE
-                            ) {
-                                this.referer = "$mainUrl/"
-                            }
-                        )
-                        foundLinks = true
                     }
                 }
+            } catch (e: Exception) {
+                Log.e(name, "Error extracting $watchUrl: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(name, "Error extracting watch-lite: ${e.message}")
         }
 
-        // 2. Extract direct MP4 downloads from download-lite
-        try {
-            val dlRes = app.get(dlUrl, headers = headers, timeout = 25L)
-            val dlHtml = dlRes.text
-            val dlRegex = Regex("""<a\b[^>]*href=["'](https?://vod\d+\.drakor\.cc/download/[^"']+)["'][^>]*>([\s\S]*?)</a>""", RegexOption.IGNORE_CASE)
-            for (m in dlRegex.findAll(dlHtml)) {
-                val mp4Url = m.groupValues[1]
-                val label = m.groupValues[2].replace(Regex("""<[^>]+>"""), "").trim()
-                val quality = when {
-                    label.contains("1080p", ignoreCase = true) -> Qualities.P1080.value
-                    label.contains("720p", ignoreCase = true) -> Qualities.P720.value
-                    label.contains("480p", ignoreCase = true) -> Qualities.P480.value
-                    label.contains("360p", ignoreCase = true) -> Qualities.P360.value
-                    else -> Qualities.Unknown.value
-                }
-                val qualityName = when {
-                    label.contains("1080p", ignoreCase = true) -> "1080p"
-                    label.contains("720p", ignoreCase = true) -> "720p"
-                    label.contains("480p", ignoreCase = true) -> "480p"
-                    label.contains("360p", ignoreCase = true) -> "360p"
-                    else -> "MP4"
-                }
+        val dlUrls = listOf(
+            "$mainUrl/download-lite/$slug/$episode",
+            "$mainUrl/download-fast/$slug/$episode"
+        )
 
-                callback.invoke(
-                    newExtractorLink(
-                        name,
-                        "$name Direct $qualityName",
-                        mp4Url,
-                        INFER_TYPE
-                    ) {
-                        this.referer = "$mainUrl/"
-                        this.quality = quality
+        for (dlUrl in dlUrls) {
+            try {
+                val dlHtml = fetchPage(dlUrl)
+                val dlRegex = Regex("""<a\b[^>]*href=["'](https?://[^"']+\.mp4[^"']*)["'][^>]*>([\s\S]*?)</a>""", RegexOption.IGNORE_CASE)
+                for (m in dlRegex.findAll(dlHtml)) {
+                    val mp4Url = m.groupValues[1]
+                    val label = m.groupValues[2].replace(Regex("""<[^>]+>"""), "").trim()
+                    val quality = when {
+                        label.contains("1080p", ignoreCase = true) || mp4Url.contains("1080p", ignoreCase = true) -> Qualities.P1080.value
+                        label.contains("720p", ignoreCase = true) || mp4Url.contains("720p", ignoreCase = true) -> Qualities.P720.value
+                        label.contains("480p", ignoreCase = true) || mp4Url.contains("480p", ignoreCase = true) -> Qualities.P480.value
+                        label.contains("360p", ignoreCase = true) || mp4Url.contains("360p", ignoreCase = true) -> Qualities.P360.value
+                        else -> Qualities.Unknown.value
                     }
-                )
-                foundLinks = true
+                    val qualityName = when {
+                        label.contains("1080p", ignoreCase = true) || mp4Url.contains("1080p", ignoreCase = true) -> "1080p"
+                        label.contains("720p", ignoreCase = true) || mp4Url.contains("720p", ignoreCase = true) -> "720p"
+                        label.contains("480p", ignoreCase = true) || mp4Url.contains("480p", ignoreCase = true) -> "480p"
+                        label.contains("360p", ignoreCase = true) || mp4Url.contains("360p", ignoreCase = true) -> "360p"
+                        else -> "MP4"
+                    }
+                    val serverName = if (dlUrl.contains("fast")) "Fast" else "Lite"
+
+                    callback.invoke(
+                        newExtractorLink(
+                            name,
+                            "$name Direct $serverName $qualityName",
+                            mp4Url,
+                            INFER_TYPE
+                        ) {
+                            this.referer = "$mainUrl/"
+                            this.quality = quality
+                        }
+                    )
+                    foundLinks = true
+                }
+            } catch (e: Exception) {
+                Log.e(name, "Error extracting $dlUrl: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(name, "Error extracting download-lite: ${e.message}")
         }
 
         return foundLinks

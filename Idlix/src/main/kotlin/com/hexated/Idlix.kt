@@ -266,7 +266,7 @@ class Idlix : MainAPI() {
 
             newTvSeriesLoadResponse(title, weburl, TvType.TvSeries, episodes) {
                 this.posterUrl = poster
-                this.backgroundPosterUrl = backdrop
+                this.backgroundPosterUrl = backdrop ?: poster
                 this.logoUrl = logourl
                 this.year = year
                 this.plot = data.overview
@@ -286,7 +286,7 @@ class Idlix : MainAPI() {
                 ).toJson()
             ) {
                 this.posterUrl = poster
-                this.backgroundPosterUrl = backdrop
+                this.backgroundPosterUrl = backdrop ?: poster
                 this.logoUrl = logourl
                 this.year = year
                 this.plot = data.overview
