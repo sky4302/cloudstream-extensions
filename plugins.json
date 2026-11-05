@@ -1,10 +1,10 @@
 [
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://drakorid.co&sz=%size%",
-        "fileHash": "sha256-ef2b996931b8b363d09674df627b073bb3b685728d1c1d29fc873511412202c4",
+        "fileHash": "sha256-a8820ae73a7648e2d42df4e58157c49b7a42ea842173c853e7d0b36ecb06c8ad",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 24995,
+        "fileSize": 25441,
         "status": 1,
         "language": "id",
         "authors": [
@@ -14,7 +14,7 @@
             "AsianDrama",
             "Movie"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "DrakorID",
         "description": "DrakorID - Nonton Streaming Drama Korea, Drama Asia & Movie Sub Indo",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/DrakorID.cs3",
