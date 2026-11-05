@@ -1,10 +1,10 @@
 [
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://drakorid.co&sz=%size%",
-        "fileHash": "sha256-a8820ae73a7648e2d42df4e58157c49b7a42ea842173c853e7d0b36ecb06c8ad",
+        "fileHash": "sha256-39505cedb46aaaca0b8a11067c5443da548b68012b4bf5c4973d5b073b72b85d",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 25441,
+        "fileSize": 30298,
         "status": 1,
         "language": "id",
         "authors": [
@@ -14,7 +14,7 @@
             "AsianDrama",
             "Movie"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "DrakorID",
         "description": "DrakorID - Nonton Streaming Drama Korea, Drama Asia & Movie Sub Indo",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/DrakorID.cs3",
@@ -22,10 +22,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://z2.idlixku.com&sz=%size%",
-        "fileHash": "sha256-b4bd55c91be432fe4403c39ed6e316151c3f6643669f14086df64c1e86f8d809",
+        "fileHash": "sha256-e7908299ee4b99b894399485c8825ba1f689daf8d6f35abcae035feb02bc4fcb",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 50792,
+        "fileSize": 50795,
         "status": 1,
         "language": "id",
         "authors": [
@@ -35,7 +35,7 @@
             "Movie",
             "TvSeries"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "Idlix",
         "description": "Idlix - Streaming Film & Serial TV Indonesia",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Idlix.cs3",
