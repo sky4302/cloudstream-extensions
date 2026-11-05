@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addScore
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.INFER_TYPE
+import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.json.JSONObject
@@ -24,12 +25,13 @@ class Otakudesu : MainAPI() {
     )
 
     override val mainPage = mainPageOf(
-        "ongoing-anime/page/" to "Anime Ongoing",
-        "complete-anime/page/" to "Anime Completed"
+        "ongoing-anime/" to "Anime Ongoing",
+        "complete-anime/" to "Anime Completed"
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}$page/", timeout = 30L).document
+        val path = if (page <= 1) request.data else "${request.data}page/$page/"
+        val document = app.get("$mainUrl/$path", timeout = 30L).document
         val home = document.select("div.venz ul li, div.rseries div.rapi ul li").mapNotNull {
             it.toSearchResult()
         }.distinctBy { it.url }
@@ -242,26 +244,68 @@ class Otakudesu : MainAPI() {
 
         if (fixed.contains("desustream.net") || fixed.contains("desustream.info") || fixed.contains("desustream.me")) {
             try {
-                val embedText = app.get(fixed, referer = referer, timeout = 20L).text
+                val embedText = app.get(
+                    fixed,
+                    referer = referer,
+                    headers = mapOf("User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"),
+                    timeout = 20L
+                ).text
 
-                // Check for Blogger video iframe
+                // 1. Lazy-load player / videoURL pattern (e.g. cdn.odcloud.net)
+                val videoUrlMatch = Regex("""videoURL\s*=\s*["'](https?://[^"']+)["']""").find(embedText)
+                    ?: Regex("""["'](https?://cdn\.odcloud\.net/[^"'s]+\.mp4[^"']*)["']""").find(embedText)
+
+                if (videoUrlMatch != null) {
+                    val streamUrl = videoUrlMatch.groupValues[1]
+                    val quality = when {
+                        streamUrl.contains("1080p", ignoreCase = true) -> Qualities.P1080.value
+                        streamUrl.contains("720p", ignoreCase = true) -> Qualities.P720.value
+                        streamUrl.contains("480p", ignoreCase = true) -> Qualities.P480.value
+                        streamUrl.contains("360p", ignoreCase = true) -> Qualities.P360.value
+                        else -> Qualities.Unknown.value
+                    }
+                    val qualityName = when {
+                        streamUrl.contains("1080p", ignoreCase = true) -> "1080p"
+                        streamUrl.contains("720p", ignoreCase = true) -> "720p"
+                        streamUrl.contains("480p", ignoreCase = true) -> "480p"
+                        streamUrl.contains("360p", ignoreCase = true) -> "360p"
+                        else -> "MP4"
+                    }
+
+                    callback.invoke(
+                        newExtractorLink("Otakudesu", "DesuStream $qualityName", streamUrl, INFER_TYPE) {
+                            this.referer = "https://desustream.net/"
+                            this.headers = mapOf(
+                                "Referer" to "https://desustream.net/",
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            )
+                            this.quality = quality
+                        }
+                    )
+                }
+
+                // 2. Check for Blogger video iframe
                 val bloggerMatch = Regex("""src=["'](https?://www\.blogger\.com/video\.g\?[^"']+)["']""").find(embedText)
                 if (bloggerMatch != null) {
                     loadExtractor(bloggerMatch.groupValues[1], fixed, subtitleCallback, callback)
                 }
 
-                // Check for Archive.org / direct MP4 playerjs
+                // 3. Check for Archive.org / direct MP4 playerjs
                 val fileMatch = Regex("""file\s*:\s*["'](https?://[^"']+\.mp4[^"']*)["']""").find(embedText)
                 if (fileMatch != null) {
                     val streamUrl = fileMatch.groupValues[1]
                     callback.invoke(
                         newExtractorLink("Otakudesu", "DesuStream", streamUrl, INFER_TYPE) {
                             this.referer = fixed
+                            this.headers = mapOf(
+                                "Referer" to fixed,
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            )
                         }
                     )
                 }
 
-                // Check for secondary iframe inside player
+                // 4. Check for secondary iframe inside player
                 val innerIframe = Jsoup.parse(embedText).selectFirst("iframe#myIframe, iframe")?.attr("src")
                 if (!innerIframe.isNullOrBlank() && innerIframe != fixed) {
                     loadExtractor(innerIframe, fixed, subtitleCallback, callback)
