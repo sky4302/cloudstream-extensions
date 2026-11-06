@@ -138,7 +138,29 @@ open class VideoNode : ExtractorApi() {
                         val json = JSONObject(verifyRes)
                         val fileUrl = json.optString("fileUrl")
                         if (fileUrl.isNotBlank()) {
-                            M3u8Helper.generateM3u8(name, fileUrl, "https://playcdn.de/").forEach(callback)
+                            if (fileUrl.contains("/480.m3u8")) {
+                                listOf(
+                                    "1080" to Qualities.P1080.value,
+                                    "720" to Qualities.P720.value,
+                                    "480" to Qualities.P480.value,
+                                    "360" to Qualities.P360.value
+                                ).forEach { (qStr, qVal) ->
+                                    val qUrl = fileUrl.replace("/480.m3u8", "/$qStr.m3u8")
+                                    callback(
+                                        newExtractorLink(
+                                            source = name,
+                                            name = "$name ${qStr}p",
+                                            url = qUrl,
+                                            type = ExtractorLinkType.M3U8
+                                        ) {
+                                            this.referer = "https://playcdn.de/"
+                                            this.quality = qVal
+                                        }
+                                    )
+                                }
+                            } else {
+                                M3u8Helper.generateM3u8(name, fileUrl, "https://playcdn.de/").forEach(callback)
+                            }
                             return
                         }
                     } catch (_: Exception) {}

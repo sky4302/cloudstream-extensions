@@ -19,7 +19,20 @@ class LayarKacaProvider : MainAPI() {
     override var lang = "id"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.AsianDrama)
 
-    private val seriesUrl = "https://tv1.layanfilem.my"
+    private val seriesUrl = "https://tv.nontondrama.vip"
+    private val posterBaseUrl = "https://poster.assetsy.de/wp-content/uploads/"
+
+    private fun fixPosterUrl(raw: String?): String? {
+        if (raw.isNullOrBlank()) return null
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("data:")) return null
+        return when {
+            trimmed.startsWith("http://") || trimmed.startsWith("https://") -> trimmed
+            trimmed.startsWith("//") -> "https:$trimmed"
+            trimmed.startsWith("/") -> "https://poster.assetsy.de$trimmed"
+            else -> "$posterBaseUrl$trimmed"
+        }
+    }
 
     override val mainPage = mainPageOf(
         "$mainUrl/populer/page/" to "Film Terpopuler",
@@ -63,9 +76,17 @@ class LayarKacaProvider : MainAPI() {
         val href = fixUrlNull(a.attr("href")) ?: return null
 
         val img = selectFirst("img")
-        val rawPoster = img?.attr("src")?.ifBlank { null }
-            ?: img?.attr("data-src")?.ifBlank { null }
-        val posterUrl = fixUrlNull(rawPoster)
+        val dataSrc = img?.attr("data-src")?.ifBlank { null }
+        val src = img?.attr("src")?.ifBlank { null }
+        val srcset = img?.attr("srcset")?.ifBlank { null }
+            ?: selectFirst("source")?.attr("srcset")?.ifBlank { null }
+        val rawPoster = when {
+            !dataSrc.isNullOrBlank() && !dataSrc.startsWith("data:") -> dataSrc
+            !src.isNullOrBlank() && !src.startsWith("data:") -> src
+            !srcset.isNullOrBlank() && !srcset.startsWith("data:") -> srcset.substringBefore(" ")
+            else -> null
+        }
+        val posterUrl = fixPosterUrl(rawPoster)
 
         val isSeries = href.contains("/series/") || selectFirst("span.episode, .episode") != null
         val quality = selectFirst("div.quality, span.quality, span.label")?.text()?.trim().orEmpty()
@@ -113,18 +134,22 @@ class LayarKacaProvider : MainAPI() {
                                 "$mainUrl/$slug"
                             }
                             val tvType = if (type.equals("series", ignoreCase = true)) TvType.TvSeries else TvType.Movie
-                            val poster = fixUrlNull(item.optString("poster").ifBlank { null })
+                            val poster = fixPosterUrl(item.optString("poster").ifBlank { null })
+                            val quality = item.optString("quality").trim()
+                            val episode = item.optInt("episode", 0)
 
                             if (tvType == TvType.Movie) {
                                 results.add(
                                     newMovieSearchResponse(title, href, tvType) {
                                         this.posterUrl = poster
+                                        if (quality.isNotBlank()) addQuality(quality)
                                     }
                                 )
                             } else {
                                 results.add(
                                     newAnimeSearchResponse(title, href, tvType) {
                                         this.posterUrl = poster
+                                        if (episode > 0) addSub(episode)
                                     }
                                 )
                             }
@@ -156,9 +181,10 @@ class LayarKacaProvider : MainAPI() {
         val title = doc.selectFirst("div.movie-info h1, h1.entry-title, h1")?.text()?.trim()
             ?: properUrl.substringBeforeLast("/").substringAfterLast("/")
 
-        val poster = fixUrlNull(
+        val poster = fixPosterUrl(
             doc.selectFirst("meta[property='og:image']")?.attr("content")
                 ?: doc.selectFirst("div.poster img, figure img, .content-poster img")?.attr("src")
+                ?: doc.selectFirst("div.poster img, figure img, .content-poster img")?.attr("data-src")
         )
 
         val tags = doc.select("div.tag-list span, .genre a, a[href*='/genre/']").map { it.text().trim() }.filter { it.isNotBlank() }
