@@ -107,10 +107,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
-        "fileHash": "sha256-aec5f7cb21e22e36c9dd0ea2ba5e4ed373650cb060e6827ffb807e2885a1a42b",
+        "fileHash": "sha256-587dd792cf92af64e0f085749ec6f1588e75c95fea4ac1fecc8f843bcf2c9cf5",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 26278,
+        "fileSize": 33343,
         "status": 1,
         "language": "id",
         "authors": [
