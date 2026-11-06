@@ -1,6 +1,7 @@
 package com.hexated
 
 import android.util.Base64
+import android.util.Log
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addScore
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -11,6 +12,7 @@ import com.lagradost.cloudstream3.utils.newExtractorLink
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import java.net.URLEncoder
 
 class Otakudesu : MainAPI() {
     override var mainUrl = "https://otakudesu.blog"
@@ -23,6 +25,10 @@ class Otakudesu : MainAPI() {
         TvType.AnimeMovie,
         TvType.OVA
     )
+
+    companion object {
+        private const val TAG = "Otakudesu"
+    }
 
     override val mainPage = mainPageOf(
         "ongoing-anime/" to "Anime Ongoing",
@@ -68,7 +74,8 @@ class Otakudesu : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val document = app.get("$mainUrl/?s=$query&post_type=anime", timeout = 30L).document
+        val encodedQuery = URLEncoder.encode(query, "UTF-8")
+        val document = app.get("$mainUrl/?s=$encodedQuery&post_type=anime", timeout = 30L).document
         return document.select("ul.chivsrc li").mapNotNull { li ->
             val a = li.selectFirst("h2 a") ?: li.selectFirst("a") ?: return@mapNotNull null
             val href = fixUrl(a.attr("href"))
@@ -155,80 +162,130 @@ class Otakudesu : MainAPI() {
     ): Boolean {
         val document = app.get(data, timeout = 30L).document
         val html = document.html()
+        var linksFound = false
 
         // 1. Direct embeds in page
         document.select("div.responsive-embed-stream iframe, div#pembed iframe, iframe").forEach { iframe ->
             val src = iframe.attr("src").ifBlank { iframe.attr("data-src") }
             if (src.isNotBlank() && !src.startsWith("about:") && !src.contains("ads", true)) {
                 resolveOtakuStream(src, data, subtitleCallback, callback)
+                linksFound = true
             }
         }
 
-        // 2. Resolve mirrorstream options
-        val actions = Regex("""action:\s*["']([a-f0-9]{32})["']""").findAll(html)
+        // 2. Resolve mirrorstream options via AJAX
+        // Strategy A: Extract action hashes from inline JS
+        val actionsA = Regex("""action:\s*["']([a-f0-9]{32})["']""").findAll(html)
             .map { it.groupValues[1] }
             .distinct()
             .toList()
 
-        val nonceAction = if (actions.size >= 2) actions[1] else "aa1208d27f29ca340c92c66d1926f13f"
-        val streamAction = if (actions.isNotEmpty()) actions[0] else "2a3505c93b0035d3f455df82bf976b84"
+        // Strategy B: Extract from localized script vars / wp data attributes
+        val actionsB = Regex("""["']action["']\s*:\s*["']([a-f0-9]{20,40})["']""").findAll(html)
+            .map { it.groupValues[1] }
+            .distinct()
+            .toList()
 
-        val nonce = try {
-            val nonceRes = app.post(
-                "$mainUrl/wp-admin/admin-ajax.php",
-                data = mapOf("action" to nonceAction),
-                referer = data,
-                headers = mapOf("X-Requested-With" to "XMLHttpRequest")
-            ).text
-            JSONObject(nonceRes).optString("data", "")
-        } catch (_: Exception) {
-            ""
-        }
+        val allActions = (actionsA + actionsB).distinct()
 
-        if (nonce.isNotBlank()) {
-            document.select("div.mirrorstream ul li a[data-content]").amap { a ->
-                val b64 = a.attr("data-content")
-                try {
-                    val rawJson = String(Base64.decode(b64, Base64.DEFAULT), Charsets.UTF_8)
-                    val json = JSONObject(rawJson)
-                    val id = json.opt("id")?.toString() ?: ""
-                    val i = json.opt("i")?.toString() ?: ""
-                    val q = json.optString("q", "")
+        // Try to extract nonce directly from inline scripts
+        val inlineNonce = Regex("""nonce["']\s*:\s*["']([a-f0-9]{10,12})["']""").find(html)
+            ?.groupValues?.getOrNull(1)
 
-                    val res = app.post(
-                        "$mainUrl/wp-admin/admin-ajax.php",
-                        data = mapOf(
-                            "action" to streamAction,
-                            "nonce" to nonce,
-                            "id" to id,
-                            "i" to i,
-                            "q" to q
-                        ),
-                        referer = data,
-                        headers = mapOf("X-Requested-With" to "XMLHttpRequest")
-                    ).text
+        val nonceAction = allActions.getOrNull(1) ?: allActions.getOrNull(0)
+        val streamAction = allActions.getOrNull(0)
 
-                    val embedB64 = JSONObject(res).optString("data", "")
-                    if (embedB64.isNotBlank()) {
-                        val decodedHtml = String(Base64.decode(embedB64, Base64.DEFAULT), Charsets.UTF_8)
-                        val iframeSrc = Jsoup.parse(decodedHtml).selectFirst("iframe")?.attr("src")
-                        if (!iframeSrc.isNullOrBlank()) {
-                            resolveOtakuStream(iframeSrc, data, subtitleCallback, callback)
-                        }
-                    }
-                } catch (_: Exception) {}
+        if (nonceAction != null && streamAction != null) {
+            val nonce = inlineNonce ?: try {
+                val nonceRes = app.post(
+                    "$mainUrl/wp-admin/admin-ajax.php",
+                    data = mapOf("action" to nonceAction),
+                    referer = data,
+                    headers = mapOf("X-Requested-With" to "XMLHttpRequest")
+                ).text
+                JSONObject(nonceRes).optString("data", "")
+            } catch (e: Exception) {
+                Log.w(TAG, "Nonce fetch failed for action=$nonceAction: ${e.message}")
+                ""
             }
+
+            if (nonce.isNotBlank()) {
+                // Broadened selector: try multiple known mirror container patterns
+                document.select(
+                    "div.mirrorstream ul li a[data-content], " +
+                    "div.mirror ul li a[data-content], " +
+                    "div.server ul li a[data-content]"
+                ).amap { a ->
+                    val b64 = a.attr("data-content")
+                    try {
+                        val rawJson = String(Base64.decode(b64, Base64.DEFAULT), Charsets.UTF_8)
+                        val json = JSONObject(rawJson)
+                        val id = json.opt("id")?.toString() ?: ""
+                        val i = json.opt("i")?.toString() ?: ""
+                        val q = json.optString("q", "")
+
+                        val res = app.post(
+                            "$mainUrl/wp-admin/admin-ajax.php",
+                            data = mapOf(
+                                "action" to streamAction,
+                                "nonce" to nonce,
+                                "id" to id,
+                                "i" to i,
+                                "q" to q
+                            ),
+                            referer = data,
+                            headers = mapOf("X-Requested-With" to "XMLHttpRequest")
+                        ).text
+
+                        val embedB64 = JSONObject(res).optString("data", "")
+                        if (embedB64.isNotBlank()) {
+                            val decodedHtml = String(Base64.decode(embedB64, Base64.DEFAULT), Charsets.UTF_8)
+                            val iframeSrc = Jsoup.parse(decodedHtml).selectFirst("iframe")?.attr("src")
+                            if (!iframeSrc.isNullOrBlank()) {
+                                resolveOtakuStream(iframeSrc, data, subtitleCallback, callback)
+                                linksFound = true
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Mirror resolution failed for data-content: ${e.message}")
+                    }
+                }
+            } else {
+                Log.w(TAG, "Nonce is blank — mirror stream resolution skipped")
+            }
+        } else {
+            Log.w(TAG, "Could not extract AJAX actions from page — mirror stream resolution skipped (found ${allActions.size} actions)")
         }
 
         // 3. Resolve download mirrors (Hxfile, KrakenFiles, Mega, etc.)
-        document.select("div.download ul li a[href*='link.desustream.com']").amap { a ->
+        // Broadened selector: match any desustream redirect domain variant
+        document.select("div.download ul li a[href*='desustream']").amap { a ->
             val redirectLink = a.attr("href")
             try {
                 val realUrl = app.get(redirectLink, referer = data, timeout = 15L).url
-                if (realUrl.isNotBlank() && !realUrl.contains("desustream.com", true)) {
+                if (realUrl.isNotBlank() && !realUrl.contains("desustream", true)) {
                     loadExtractor(realUrl, data, subtitleCallback, callback)
+                    linksFound = true
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "Download mirror redirect failed for $redirectLink: ${e.message}")
+            }
+        }
+
+        // 4. Final fallback: extract any video-related iframe from page
+        if (!linksFound) {
+            Log.w(TAG, "No links found from strategies 1-3, trying fallback iframe extraction")
+            document.select("iframe[src*='player'], iframe[src*='embed'], iframe[src*='stream']").forEach { iframe ->
+                val src = iframe.attr("src").ifBlank { iframe.attr("data-src") }
+                if (src.isNotBlank() && !src.startsWith("about:")) {
+                    try {
+                        loadExtractor(fixUrl(src), data, subtitleCallback, callback)
+                        linksFound = true
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Fallback iframe extraction failed for $src: ${e.message}")
+                    }
+                }
+            }
         }
 
         return true
@@ -242,7 +299,8 @@ class Otakudesu : MainAPI() {
     ) {
         val fixed = if (url.startsWith("//")) "https:$url" else url
 
-        if (fixed.contains("desustream.net") || fixed.contains("desustream.info") || fixed.contains("desustream.me")) {
+        // Broadened check: match any desustream TLD variant
+        if (fixed.contains("desustream")) {
             try {
                 val embedText = app.get(
                     fixed,
@@ -310,7 +368,9 @@ class Otakudesu : MainAPI() {
                 if (!innerIframe.isNullOrBlank() && innerIframe != fixed) {
                     loadExtractor(innerIframe, fixed, subtitleCallback, callback)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                Log.w(TAG, "DesuStream resolution failed for $fixed: ${e.message}")
+            }
         } else {
             loadExtractor(fixed, referer, subtitleCallback, callback)
         }
