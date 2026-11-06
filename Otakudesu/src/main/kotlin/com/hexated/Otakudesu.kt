@@ -96,6 +96,20 @@ class Otakudesu : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url, timeout = 30L).document
 
+        // If user navigated into a batch or lengkap page, resolve parent anime page
+        if (url.contains("/batch/") || url.contains("/lengkap/") || document.select("div.episodelist ul li").isEmpty()) {
+            val parentAnimeUrl = document.selectFirst(
+                "div.totalepisode a[href*='/anime/'], " +
+                "div.totalepisode a, " +
+                "a:contains(Download Episode), " +
+                "a:contains(Klik Disini), " +
+                "div.cukder a[href*='/anime/']"
+            )?.attr("href")
+            if (!parentAnimeUrl.isNullOrBlank() && fixUrl(parentAnimeUrl) != url) {
+                return load(fixUrl(parentAnimeUrl))
+            }
+        }
+
         val title = document.selectFirst("div.infozingle p:contains(Judul) span")?.text()?.trim()
             ?: document.selectFirst("div.jdlarea h1, h1.entry-title")?.text()?.trim().orEmpty()
 
@@ -118,13 +132,19 @@ class Otakudesu : MainAPI() {
         document.select("div.episodelist ul li").forEach { li ->
             val a = li.selectFirst("span a[href]") ?: li.selectFirst("a[href]") ?: return@forEach
             val epHref = fixUrl(a.attr("href"))
-            if (!epHref.contains("/episode/")) return@forEach
+            if (!epHref.contains("/episode/") && !epHref.contains("/special/") && !epHref.contains("/ova/") && !epHref.contains("/sp/")) return@forEach
 
             val epName = a.text().trim()
             val epNum = Regex("""(?:Episode|Ep)\s*(\d+)""", RegexOption.IGNORE_CASE).find(epName)
                 ?.groupValues?.getOrNull(1)?.toIntOrNull()
                 ?: Regex("""episode-(\d+)""", RegexOption.IGNORE_CASE).find(epHref)
                     ?.groupValues?.getOrNull(1)?.toIntOrNull()
+                ?: Regex("""(?:ova|special|sp)\s*(\d+)""", RegexOption.IGNORE_CASE).find(epName)
+                    ?.groupValues?.getOrNull(1)?.toIntOrNull()
+                ?: Regex("""(?:ova|special|sp)-(\d+)""", RegexOption.IGNORE_CASE).find(epHref)
+                    ?.groupValues?.getOrNull(1)?.toIntOrNull()
+                ?: if (epName.contains("ova", true) || epHref.contains("ova", true) ||
+                       epName.contains("special", true) || epHref.contains("special", true)) 0 else null
 
             episodes.add(
                 newEpisode(epHref) {
@@ -133,6 +153,26 @@ class Otakudesu : MainAPI() {
                     this.posterUrl = poster
                 }
             )
+        }
+
+        // Fallback for batch/lengkap listings if no episodes found in episodelist
+        if (episodes.isEmpty()) {
+            val batchOrLengkapLink = document.selectFirst(
+                "div.episodelist a[href*='/lengkap/'], " +
+                "div.episodelist a[href*='/batch/']"
+            )?.attr("href")
+            if (!batchOrLengkapLink.isNullOrBlank() && fixUrl(batchOrLengkapLink) != url) {
+                val batchDoc = app.get(fixUrl(batchOrLengkapLink), timeout = 30L).document
+                val parentAnime = batchDoc.selectFirst(
+                    "div.totalepisode a[href*='/anime/'], " +
+                    "div.totalepisode a, " +
+                    "a:contains(Download Episode), " +
+                    "a:contains(Klik Disini)"
+                )?.attr("href")
+                if (!parentAnime.isNullOrBlank() && fixUrl(parentAnime) != url) {
+                    return load(fixUrl(parentAnime))
+                }
+            }
         }
 
         return if (isMovie && episodes.isEmpty()) {
@@ -164,38 +204,32 @@ class Otakudesu : MainAPI() {
         val html = document.html()
         var linksFound = false
 
+        val linkCallback: (ExtractorLink) -> Unit = { link ->
+            linksFound = true
+            callback(link)
+        }
+
         // 1. Direct embeds in page
         document.select("div.responsive-embed-stream iframe, div#pembed iframe, iframe").forEach { iframe ->
             val src = iframe.attr("src").ifBlank { iframe.attr("data-src") }
             if (src.isNotBlank() && !src.startsWith("about:") && !src.contains("ads", true)) {
-                resolveOtakuStream(src, data, subtitleCallback, callback)
-                linksFound = true
+                resolveOtakuStream(src, data, subtitleCallback, linkCallback)
             }
         }
 
         // 2. Resolve mirrorstream options via AJAX
-        // Strategy A: Extract action hashes from inline JS
-        val actionsA = Regex("""action:\s*["']([a-f0-9]{32})["']""").findAll(html)
-            .map { it.groupValues[1] }
-            .distinct()
-            .toList()
+        val streamActionMatch = Regex("""nonce[^}]+action:\s*["']([a-f0-9]{32})["']""").find(html)
+        val nonceActionMatch = Regex("""data:\s*\{\s*action:\s*["']([a-f0-9]{32})["']\s*\}""").find(html)
 
-        // Strategy B: Extract from localized script vars / wp data attributes
-        val actionsB = Regex("""["']action["']\s*:\s*["']([a-f0-9]{20,40})["']""").findAll(html)
-            .map { it.groupValues[1] }
-            .distinct()
-            .toList()
+        val streamAction = streamActionMatch?.groupValues?.get(1)
+            ?: Regex("""action:\s*["']([a-f0-9]{32})["']""").find(html)?.groupValues?.get(1)
+        val nonceAction = nonceActionMatch?.groupValues?.get(1)
+            ?: Regex("""action:\s*["']([a-f0-9]{32})["']""").findAll(html).map { it.groupValues[1] }.distinct().toList().getOrNull(1)
 
-        val allActions = (actionsA + actionsB).distinct()
-
-        // Try to extract nonce directly from inline scripts
         val inlineNonce = Regex("""nonce["']\s*:\s*["']([a-f0-9]{10,12})["']""").find(html)
             ?.groupValues?.getOrNull(1)
 
-        val nonceAction = allActions.getOrNull(1) ?: allActions.getOrNull(0)
-        val streamAction = allActions.getOrNull(0)
-
-        if (nonceAction != null && streamAction != null) {
+        if (!nonceAction.isNullOrBlank() && !streamAction.isNullOrBlank()) {
             val nonce = inlineNonce ?: try {
                 val nonceRes = app.post(
                     "$mainUrl/wp-admin/admin-ajax.php",
@@ -210,7 +244,6 @@ class Otakudesu : MainAPI() {
             }
 
             if (nonce.isNotBlank()) {
-                // Broadened selector: try multiple known mirror container patterns
                 document.select(
                     "div.mirrorstream ul li a[data-content], " +
                     "div.mirror ul li a[data-content], " +
@@ -242,30 +275,27 @@ class Otakudesu : MainAPI() {
                             val decodedHtml = String(Base64.decode(embedB64, Base64.DEFAULT), Charsets.UTF_8)
                             val iframeSrc = Jsoup.parse(decodedHtml).selectFirst("iframe")?.attr("src")
                             if (!iframeSrc.isNullOrBlank()) {
-                                resolveOtakuStream(iframeSrc, data, subtitleCallback, callback)
-                                linksFound = true
+                                resolveOtakuStream(iframeSrc, data, subtitleCallback, linkCallback)
                             }
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Mirror resolution failed for data-content: ${e.message}")
+                        Log.w(TAG, "Mirror resolution failed: ${e.message}")
                     }
                 }
             } else {
                 Log.w(TAG, "Nonce is blank — mirror stream resolution skipped")
             }
         } else {
-            Log.w(TAG, "Could not extract AJAX actions from page — mirror stream resolution skipped (found ${allActions.size} actions)")
+            Log.w(TAG, "Could not extract AJAX actions from page — mirror stream resolution skipped")
         }
 
-        // 3. Resolve download mirrors (Hxfile, KrakenFiles, Mega, etc.)
-        // Broadened selector: match any desustream redirect domain variant
+        // 3. Resolve download mirrors (Hxfile, Filedon, Mega, etc.)
         document.select("div.download ul li a[href*='desustream']").amap { a ->
             val redirectLink = a.attr("href")
             try {
                 val realUrl = app.get(redirectLink, referer = data, timeout = 15L).url
                 if (realUrl.isNotBlank() && !realUrl.contains("desustream", true)) {
-                    loadExtractor(realUrl, data, subtitleCallback, callback)
-                    linksFound = true
+                    resolveOtakuStream(realUrl, data, subtitleCallback, linkCallback)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Download mirror redirect failed for $redirectLink: ${e.message}")
@@ -279,8 +309,7 @@ class Otakudesu : MainAPI() {
                 val src = iframe.attr("src").ifBlank { iframe.attr("data-src") }
                 if (src.isNotBlank() && !src.startsWith("about:")) {
                     try {
-                        loadExtractor(fixUrl(src), data, subtitleCallback, callback)
-                        linksFound = true
+                        resolveOtakuStream(fixUrl(src), data, subtitleCallback, linkCallback)
                     } catch (e: Exception) {
                         Log.w(TAG, "Fallback iframe extraction failed for $src: ${e.message}")
                     }
@@ -288,7 +317,7 @@ class Otakudesu : MainAPI() {
             }
         }
 
-        return true
+        return linksFound
     }
 
     private suspend fun resolveOtakuStream(
@@ -299,8 +328,7 @@ class Otakudesu : MainAPI() {
     ) {
         val fixed = if (url.startsWith("//")) "https:$url" else url
 
-        // Broadened check: match any desustream TLD variant
-        if (fixed.contains("desustream")) {
+        if (fixed.contains("desustream") || fixed.contains("desudrive")) {
             try {
                 val embedText = app.get(
                     fixed,
@@ -309,7 +337,63 @@ class Otakudesu : MainAPI() {
                     timeout = 20L
                 ).text
 
-                // 1. Lazy-load player / videoURL pattern (e.g. cdn.odcloud.net)
+                val doc = Jsoup.parse(embedText)
+
+                // 1. Direct HTML5 video / source extraction (e.g. PlayDesu, OnDesu, OnDesuHD with googlevideo/blogger mp4)
+                val sourceTag = doc.selectFirst("video source[src], source[src], video[src]")
+                val html5VideoUrl = sourceTag?.attr("src")?.ifBlank { null }
+                    ?: Regex("""<source[^>]+src=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(embedText)?.groupValues?.get(1)
+                    ?: Regex("""<video[^>]+src=["']([^"']+)["']""", RegexOption.IGNORE_CASE).find(embedText)?.groupValues?.get(1)
+
+                if (!html5VideoUrl.isNullOrBlank()) {
+                    val streamUrl = html5VideoUrl.replace("&amp;", "&")
+                    val titleText = doc.selectFirst("title")?.text().orEmpty()
+                    val quality = when {
+                        streamUrl.contains("itag=37") || titleText.contains("1080p", true) || streamUrl.contains("1080p", true) -> Qualities.P1080.value
+                        streamUrl.contains("itag=22") || titleText.contains("720p", true) || streamUrl.contains("720p", true) -> Qualities.P720.value
+                        titleText.contains("480p", true) || streamUrl.contains("480p", true) -> Qualities.P480.value
+                        streamUrl.contains("itag=18") || titleText.contains("360p", true) || streamUrl.contains("360p", true) -> Qualities.P360.value
+                        else -> Qualities.Unknown.value
+                    }
+                    val qualityName = when (quality) {
+                        Qualities.P1080.value -> "1080p"
+                        Qualities.P720.value -> "720p"
+                        Qualities.P480.value -> "480p"
+                        Qualities.P360.value -> "360p"
+                        else -> "MP4"
+                    }
+
+                    callback.invoke(
+                        newExtractorLink("Otakudesu", "DesuStream $qualityName", streamUrl, INFER_TYPE) {
+                            this.referer = "https://desustream.net/"
+                            this.headers = mapOf(
+                                "Referer" to "https://desustream.net/",
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            )
+                            this.quality = quality
+                        }
+                    )
+                }
+
+                // 2. Google Drive / JWPlayer JSON streams (e.g. otakudesu('{"file":"https://www.googleapis.com/..."}'))
+                val gdriveMatch = Regex("""["']file["']\s*:\s*["'](https?://(?:www\.)?googleapis\.com/drive/[^"']+)["']""").find(embedText)?.groupValues?.getOrNull(1)
+                    ?: Regex("""otakudesu\s*\(\s*['"]\{.*?"file"\s*:\s*"([^'"]+)".*?\}['"]\s*\)""").find(embedText)?.groupValues?.getOrNull(1)
+                    ?: Regex("""["']file["']\s*:\s*["'](https?://[^"']+)["']""").find(embedText)?.groupValues?.getOrNull(1)
+
+                if (!gdriveMatch.isNullOrBlank() && (gdriveMatch.contains("googleapis.com", true) || gdriveMatch.contains("drive.google.com", true))) {
+                    val streamUrl = gdriveMatch.replace("&amp;", "&")
+                    callback.invoke(
+                        newExtractorLink("Otakudesu", "DesuDrive", streamUrl, INFER_TYPE) {
+                            this.referer = "https://desustream.net/"
+                            this.headers = mapOf(
+                                "Referer" to "https://desustream.net/",
+                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                            )
+                        }
+                    )
+                }
+
+                // 3. Lazy-load player / videoURL pattern (e.g. cdn.odcloud.net)
                 val videoUrlMatch = Regex("""videoURL\s*=\s*["'](https?://[^"']+)["']""").find(embedText)
                     ?: Regex("""["'](https?://cdn\.odcloud\.net/[^"'s]+\.mp4[^"']*)["']""").find(embedText)
 
@@ -342,18 +426,12 @@ class Otakudesu : MainAPI() {
                     )
                 }
 
-                // 2. Check for Blogger video iframe
-                val bloggerMatch = Regex("""src=["'](https?://www\.blogger\.com/video\.g\?[^"']+)["']""").find(embedText)
-                if (bloggerMatch != null) {
-                    loadExtractor(bloggerMatch.groupValues[1], fixed, subtitleCallback, callback)
-                }
-
-                // 3. Check for Archive.org / direct MP4 playerjs
+                // 4. Archive.org / direct MP4 playerjs
                 val fileMatch = Regex("""file\s*:\s*["'](https?://[^"']+\.mp4[^"']*)["']""").find(embedText)
                 if (fileMatch != null) {
                     val streamUrl = fileMatch.groupValues[1]
                     callback.invoke(
-                        newExtractorLink("Otakudesu", "DesuStream", streamUrl, INFER_TYPE) {
+                        newExtractorLink("Otakudesu", "DesuStream Archive", streamUrl, INFER_TYPE) {
                             this.referer = fixed
                             this.headers = mapOf(
                                 "Referer" to fixed,
@@ -363,13 +441,46 @@ class Otakudesu : MainAPI() {
                     )
                 }
 
-                // 4. Check for secondary iframe inside player
-                val innerIframe = Jsoup.parse(embedText).selectFirst("iframe#myIframe, iframe")?.attr("src")
-                if (!innerIframe.isNullOrBlank() && innerIframe != fixed) {
-                    loadExtractor(innerIframe, fixed, subtitleCallback, callback)
+                // 5. Blogger video iframe
+                val bloggerMatch = Regex("""src=["'](https?://www\.blogger\.com/video\.g\?[^"']+)["']""").find(embedText)
+                if (bloggerMatch != null) {
+                    loadExtractor(bloggerMatch.groupValues[1], fixed, subtitleCallback, callback)
+                }
+
+                // 6. Secondary wrapper iframes inside player (e.g. yuplod.php embedding yourupload, mp4upload, etc.)
+                doc.select("iframe").forEach { innerIframe ->
+                    val innerSrc = innerIframe.attr("src").ifBlank { innerIframe.attr("data-src") }
+                    if (innerSrc.isNotBlank() && innerSrc != fixed && !innerSrc.startsWith("about:") && !innerSrc.contains("ads", true)) {
+                        val fixedInner = fixUrl(innerSrc)
+                        if (fixedInner.contains("desustream") || fixedInner.contains("desudrive")) {
+                            resolveOtakuStream(fixedInner, fixed, subtitleCallback, callback)
+                        } else {
+                            loadExtractor(fixedInner, fixed, subtitleCallback, callback)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "DesuStream resolution failed for $fixed: ${e.message}")
+            }
+        } else if (fixed.contains("odvidhide.com")) {
+            // Forward to Vidhide extractor by domain normalization
+            loadExtractor(fixed.replace("odvidhide.com", "vidhidepro.com"), referer, subtitleCallback, callback)
+        } else if (fixed.contains("filedon.co")) {
+            try {
+                val fileText = app.get(fixed, referer = referer).text
+                val streamUrl = Regex("""["']stream_url["']\s*:\s*["'](https?://[^"']+)["']""").find(fileText)?.groupValues?.get(1)
+                    ?: Regex("""["']url["']\s*:\s*["'](https?:\\?/\\?/[^"']+\.mp4[^"']*)["']""").find(fileText)?.groupValues?.get(1)?.replace("\\/", "/")
+                    ?: Regex("""https?://[^"'\s<>]+\.r2\.cloudflarestorage\.com/[^"'\s<>]+""").find(fileText)?.value
+
+                if (!streamUrl.isNullOrBlank()) {
+                    callback.invoke(
+                        newExtractorLink("Filedon", "Filedon", streamUrl.replace("&amp;", "&"), INFER_TYPE) {
+                            this.referer = fixed
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Filedon extraction failed: ${e.message}")
             }
         } else {
             loadExtractor(fixed, referer, subtitleCallback, callback)
