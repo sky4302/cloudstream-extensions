@@ -107,10 +107,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://s13.nontonanimeid.boats&sz=%size%",
-        "fileHash": "sha256-6aae672ae0300609a3cd09ad7f151ca1192901f74d42b34826862e31d7b9149e",
+        "fileHash": "sha256-7bfb6430622cfdead08528d5c6f21afaae6c61acfef66879f8d2ad5b60847de1",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 37144,
+        "fileSize": 38047,
         "status": 1,
         "language": "id",
         "authors": [
@@ -121,7 +121,7 @@
             "AnimeMovie",
             "OVA"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "NontonAnimeID",
         "description": "NontonAnimeID - Nonton Anime Streaming & Download Sub Indo",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/NontonAnimeID.cs3",
