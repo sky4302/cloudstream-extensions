@@ -2,6 +2,7 @@ package com.hexated
 
 import android.app.AlertDialog
 import android.content.Context
+import android.util.Log
 import android.widget.EditText
 import android.widget.Toast
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
@@ -13,20 +14,34 @@ import com.lagradost.cloudstream3.plugins.Plugin
 class NontonAnimeIDPlugin : Plugin() {
     override fun load(context: Context) {
         val provider = NontonAnimeID()
-        val customUrl = getKey<String>(NontonAnimeIDSettings.KEY_CUSTOM_URL)
-        if (!customUrl.isNullOrBlank()) {
-            provider.mainUrl = customUrl
+        try {
+            val customUrl = getKey<String>(NontonAnimeIDSettings.KEY_CUSTOM_URL)
+            if (!customUrl.isNullOrBlank()) {
+                provider.mainUrl = customUrl
+            }
+        } catch (e: Throwable) {
+            Log.w("NontonAnimeIDPlugin", "Could not read customUrl: ${e.message}")
         }
-        registerMainAPI(provider)
+
+        try {
+            registerMainAPI(provider)
+        } catch (e: Throwable) {
+            Log.e("NontonAnimeIDPlugin", "Error registering MainAPI: ${e.message}")
+        }
 
         openSettings = { ctx ->
-            showMainSettingsDialog(ctx, provider)
+            try {
+                showMainSettingsDialog(ctx, provider)
+            } catch (e: Throwable) {
+                Toast.makeText(ctx, "Gagal membuka pengaturan: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun showMainSettingsDialog(ctx: Context, provider: NontonAnimeID) {
         val options = arrayOf(
-            "Verifikasi Cloudflare (Turnstile Solver)",
+            "Verifikasi Cloudflare (Turnstile WebView)",
+            "Input Manual Cookie cf_clearance",
             "Status Cloudflare & Hapus Cookie",
             "Kustom Domain URL",
             "Reset ke Pengaturan Awal"
@@ -37,9 +52,10 @@ class NontonAnimeIDPlugin : Plugin() {
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showCloudflareSolveDialog(ctx, provider)
-                    1 -> showCloudflareStatusDialog(ctx)
-                    2 -> showCustomDomainDialog(ctx, provider)
-                    3 -> showResetDialog(ctx, provider)
+                    1 -> showManualCookieDialog(ctx)
+                    2 -> showCloudflareStatusDialog(ctx)
+                    3 -> showCustomDomainDialog(ctx, provider)
+                    4 -> showResetDialog(ctx, provider)
                 }
             }
             .setNegativeButton("Tutup", null)
@@ -48,6 +64,29 @@ class NontonAnimeIDPlugin : Plugin() {
 
     private fun showCloudflareSolveDialog(ctx: Context, provider: NontonAnimeID) {
         NontonAnimeIDCloudflare.showInteractiveDialog(ctx, provider.mainUrl)
+    }
+
+    private fun showManualCookieDialog(ctx: Context) {
+        val input = EditText(ctx)
+        input.hint = "Paste token cf_clearance di sini"
+        val current = NontonAnimeIDCloudflare.getSavedClearance()
+        if (!current.isNullOrBlank()) {
+            input.setText(current)
+        }
+
+        AlertDialog.Builder(ctx)
+            .setTitle("Input Manual Cookie cf_clearance")
+            .setMessage("Jika WebView otomatis terkendala, salin nilai cookie cf_clearance dari browser:")
+            .setView(input)
+            .setPositiveButton("Simpan") { _, _ ->
+                val cookie = input.text.toString().trim()
+                if (cookie.isNotBlank()) {
+                    NontonAnimeIDCloudflare.setSavedClearance(cookie)
+                    Toast.makeText(ctx, "Cookie cf_clearance berhasil disimpan!", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
     private fun showCloudflareStatusDialog(ctx: Context) {

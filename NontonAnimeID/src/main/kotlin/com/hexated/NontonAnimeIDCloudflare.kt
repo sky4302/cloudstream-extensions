@@ -3,11 +3,10 @@ package com.hexated
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -21,24 +20,42 @@ import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.app
 import com.lagradost.nicehttp.NiceResponse
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 object NontonAnimeIDCloudflare {
     private const val TAG = "NontonAnimeIDCF"
 
     fun getSavedClearance(): String? {
-        return getKey<String>(NontonAnimeIDSettings.KEY_CF_CLEARANCE)?.takeIf { it.isNotBlank() }
+        return try {
+            getKey<String>(NontonAnimeIDSettings.KEY_CF_CLEARANCE)?.takeIf { it.isNotBlank() }
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     fun getSavedUserAgent(): String? {
-        return getKey<String>(NontonAnimeIDSettings.KEY_CF_USER_AGENT)?.takeIf { it.isNotBlank() }
+        return try {
+            getKey<String>(NontonAnimeIDSettings.KEY_CF_USER_AGENT)?.takeIf { it.isNotBlank() }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun setSavedClearance(cookie: String) {
+        try {
+            setKey(NontonAnimeIDSettings.KEY_CF_CLEARANCE, cookie.trim())
+        } catch (_: Throwable) {}
+    }
+
+    fun setSavedUserAgent(ua: String) {
+        try {
+            setKey(NontonAnimeIDSettings.KEY_CF_USER_AGENT, ua.trim())
+        } catch (_: Throwable) {}
     }
 
     fun clearSavedClearance() {
-        setKey(NontonAnimeIDSettings.KEY_CF_CLEARANCE, "")
+        try {
+            setKey(NontonAnimeIDSettings.KEY_CF_CLEARANCE, "")
+        } catch (_: Throwable) {}
     }
 
     fun isChallenge(response: NiceResponse): Boolean {
@@ -51,13 +68,11 @@ object NontonAnimeIDCloudflare {
 
     /**
      * Executes GET request with Cloudflare clearance cookie & UA injection.
-     * If challenge is met, attempts silent background resolution.
      */
     suspend fun safeGet(
         url: String,
         referer: String? = null,
-        headers: Map<String, String> = emptyMap(),
-        allowRetry: Boolean = true
+        headers: Map<String, String> = emptyMap()
     ): NiceResponse {
         val reqHeaders = headers.toMutableMap()
         getSavedUserAgent()?.let { reqHeaders["User-Agent"] = it }
@@ -77,18 +92,11 @@ object NontonAnimeIDCloudflare {
             throw e
         }
 
-        if (isChallenge(response) && allowRetry) {
-            Log.w(TAG, "Cloudflare challenge detected on $url. Attempting background WebView solve...")
-            val solved = resolveBackground(url)
-            if (solved) {
-                Log.i(TAG, "Background solve successful! Retrying request...")
-                return safeGet(url, referer, headers, allowRetry = false)
-            } else {
-                Log.w(TAG, "Background solve failed or requires manual click.")
-                throw ErrorLoadingException(
-                    "Cloudflare Turnstile terdeteksi! Silakan buka Pengaturan Plugin NontonAnimeID -> 'Verifikasi Cloudflare' untuk verifikasi sekali saja."
-                )
-            }
+        if (isChallenge(response)) {
+            Log.w(TAG, "Cloudflare challenge detected on $url")
+            throw ErrorLoadingException(
+                "Proteksi Cloudflare aktif. Buka Pengaturan Plugin NontonAnimeID -> 'Verifikasi Cloudflare (Turnstile)'."
+            )
         }
 
         return response
@@ -101,8 +109,7 @@ object NontonAnimeIDCloudflare {
         url: String,
         data: Map<String, String>,
         referer: String? = null,
-        headers: Map<String, String> = emptyMap(),
-        allowRetry: Boolean = true
+        headers: Map<String, String> = emptyMap()
     ): NiceResponse {
         val reqHeaders = headers.toMutableMap()
         getSavedUserAgent()?.let { reqHeaders["User-Agent"] = it }
@@ -110,101 +117,31 @@ object NontonAnimeIDCloudflare {
         val cookies = mutableMapOf<String, String>()
         getSavedClearance()?.let { cookies["cf_clearance"] = it }
 
-        val response = app.post(
-            url = url,
-            data = data,
-            headers = reqHeaders,
-            referer = referer,
-            cookies = cookies
-        )
+        val response = try {
+            app.post(
+                url = url,
+                data = data,
+                headers = reqHeaders,
+                referer = referer,
+                cookies = cookies
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "POST request failed: ${e.message}")
+            throw e
+        }
 
-        if (isChallenge(response) && allowRetry) {
-            Log.w(TAG, "Cloudflare challenge detected on POST $url. Attempting background WebView solve...")
-            val solved = resolveBackground(url)
-            if (solved) {
-                return safePost(url, data, referer, headers, allowRetry = false)
-            } else {
-                throw ErrorLoadingException(
-                    "Cloudflare Turnstile terdeteksi! Buka Pengaturan Plugin NontonAnimeID -> 'Verifikasi Cloudflare'."
-                )
-            }
+        if (isChallenge(response)) {
+            Log.w(TAG, "Cloudflare challenge detected on POST $url")
+            throw ErrorLoadingException(
+                "Proteksi Cloudflare aktif. Buka Pengaturan Plugin NontonAnimeID -> 'Verifikasi Cloudflare'."
+            )
         }
 
         return response
     }
 
     /**
-     * Attempts background silent bypass using Android's WebView.
-     */
-    @SuppressLint("SetJavaScriptEnabled")
-    suspend fun resolveBackground(targetUrl: String): Boolean = withContext(Dispatchers.IO) {
-        val latch = CountDownLatch(1)
-        var solved = false
-        val mainHandler = Handler(Looper.getMainLooper())
-
-        mainHandler.post {
-            try {
-                val context = com.lagradost.cloudstream3.CloudStreamApp.context
-                if (context == null) {
-                    Log.e(TAG, "Application context is null, cannot spawn WebView")
-                    latch.countDown()
-                    return@post
-                }
-
-                val webView = WebView(context)
-                val cookieManager = CookieManager.getInstance()
-                cookieManager.setAcceptCookie(true)
-
-                with(webView.settings) {
-                    javaScriptEnabled = true
-                    domStorageEnabled = true
-                    databaseEnabled = true
-                    useWideViewPort = true
-                    loadWithOverviewMode = true
-                }
-
-                webView.webViewClient = object : WebViewClient() {
-                    private fun checkCookie(url: String?) {
-                        if (url == null) return
-                        val currentCookies = cookieManager.getCookie(url) ?: return
-                        if (currentCookies.contains("cf_clearance")) {
-                            val clearance = Regex("""cf_clearance=([^;]+)""").find(currentCookies)?.groupValues?.getOrNull(1)
-                            if (!clearance.isNullOrBlank()) {
-                                setKey(NontonAnimeIDSettings.KEY_CF_CLEARANCE, clearance)
-                                setKey(NontonAnimeIDSettings.KEY_CF_USER_AGENT, webView.settings.userAgentString)
-                                solved = true
-                                Log.i(TAG, "Extracted cf_clearance: $clearance")
-                                webView.stopLoading()
-                                webView.destroy()
-                                latch.countDown()
-                            }
-                        }
-                    }
-
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        checkCookie(url)
-                    }
-
-                    override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-                        checkCookie(request?.url?.toString())
-                        return super.shouldInterceptRequest(view, request)
-                    }
-                }
-
-                webView.loadUrl(targetUrl)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in background WebView: ${e.message}")
-                latch.countDown()
-            }
-        }
-
-        // Wait up to 15 seconds for silent resolution
-        latch.await(15, TimeUnit.SECONDS)
-        return@withContext solved
-    }
-
-    /**
-     * Displays an interactive WebView dialog to allow user to solve Turnstile checkbox.
+     * Displays an interactive WebView dialog in the Activity context to solve Turnstile.
      */
     @SuppressLint("SetJavaScriptEnabled")
     fun showInteractiveDialog(
@@ -212,82 +149,105 @@ object NontonAnimeIDCloudflare {
         targetUrl: String,
         onSolved: (() -> Unit)? = null
     ) {
-        val container = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
-        }
-
-        val statusText = TextView(ctx).apply {
-            text = "Memuat proteksi Cloudflare... Jika muncul kotak centang 'Verify you are human', silakan klik."
-            textSize = 14f
-            setPadding(0, 0, 0, 16)
-        }
-        container.addView(statusText)
-
-        val progressBar = ProgressBar(ctx).apply {
-            isIndeterminate = true
-        }
-        container.addView(progressBar)
-
-        val webView = WebView(ctx).apply {
-            layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                800
-            )
-        }
-        container.addView(webView)
-
-        val dialog = AlertDialog.Builder(ctx)
-            .setTitle("Verifikasi Cloudflare Turnstile")
-            .setView(container)
-            .setNegativeButton("Tutup") { d, _ ->
-                webView.stopLoading()
-                webView.destroy()
-                d.dismiss()
+        try {
+            val container = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(16, 16, 16, 16)
             }
-            .create()
 
-        val cookieManager = CookieManager.getInstance()
-        cookieManager.setAcceptCookie(true)
+            val statusText = TextView(ctx).apply {
+                text = "Memuat halaman... Silakan klik 'Verify you are human' jika muncul."
+                textSize = 14f
+                setPadding(0, 0, 0, 16)
+            }
+            container.addView(statusText)
 
-        with(webView.settings) {
-            javaScriptEnabled = true
-            domStorageEnabled = true
-            databaseEnabled = true
-            useWideViewPort = true
-            loadWithOverviewMode = true
-        }
+            val progressBar = ProgressBar(ctx).apply {
+                isIndeterminate = true
+            }
+            container.addView(progressBar)
 
-        webView.webViewClient = object : WebViewClient() {
-            private fun checkCookie(url: String?) {
-                if (url == null) return
-                val currentCookies = cookieManager.getCookie(url) ?: return
-                if (currentCookies.contains("cf_clearance")) {
-                    val clearance = Regex("""cf_clearance=([^;]+)""").find(currentCookies)?.groupValues?.getOrNull(1)
-                    if (!clearance.isNullOrBlank()) {
-                        setKey(NontonAnimeIDSettings.KEY_CF_CLEARANCE, clearance)
-                        setKey(NontonAnimeIDSettings.KEY_CF_USER_AGENT, webView.settings.userAgentString)
-                        Toast.makeText(ctx, "Verifikasi Cloudflare Berhasil!", Toast.LENGTH_LONG).show()
+            val webView = WebView(ctx).apply {
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    850
+                )
+            }
+            container.addView(webView)
+
+            val dialog = AlertDialog.Builder(ctx)
+                .setTitle("Verifikasi Cloudflare")
+                .setView(container)
+                .setNegativeButton("Tutup") { d, _ ->
+                    try {
                         webView.stopLoading()
+                        (webView.parent as? ViewGroup)?.removeView(webView)
                         webView.destroy()
-                        dialog.dismiss()
-                        onSolved?.invoke()
-                    }
+                    } catch (_: Throwable) {}
+                    d.dismiss()
+                }
+                .create()
+
+            val cookieManager = CookieManager.getInstance()
+            try {
+                cookieManager.setAcceptCookie(true)
+            } catch (_: Throwable) {}
+
+            with(webView.settings) {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                useWideViewPort = true
+                loadWithOverviewMode = true
+            }
+
+            webView.webViewClient = object : WebViewClient() {
+                private var handled = false
+
+                private fun checkCookie(url: String?) {
+                    if (handled || url == null) return
+                    try {
+                        val currentCookies = cookieManager.getCookie(url) ?: return
+                        if (currentCookies.contains("cf_clearance")) {
+                            val clearance = Regex("""cf_clearance=([^;]+)""").find(currentCookies)?.groupValues?.getOrNull(1)
+                            if (!clearance.isNullOrBlank()) {
+                                handled = true
+                                setSavedClearance(clearance)
+                                setSavedUserAgent(webView.settings.userAgentString)
+                                Toast.makeText(ctx, "Verifikasi Cloudflare Berhasil!", Toast.LENGTH_LONG).show()
+                                webView.stopLoading()
+                                (webView.parent as? ViewGroup)?.removeView(webView)
+                                webView.destroy()
+                                dialog.dismiss()
+                                onSolved?.invoke()
+                            }
+                        }
+                    } catch (_: Throwable) {}
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    progressBar.visibility = android.view.View.GONE
+                    checkCookie(url)
+                }
+
+                override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+                    checkCookie(request?.url?.toString())
+                    return super.shouldInterceptRequest(view, request)
+                }
+
+                override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                    try {
+                        (view?.parent as? ViewGroup)?.removeView(view)
+                        view?.destroy()
+                    } catch (_: Throwable) {}
+                    return true
                 }
             }
 
-            override fun onPageFinished(view: WebView?, url: String?) {
-                progressBar.visibility = android.view.View.GONE
-                checkCookie(url)
-            }
-
-            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
-                checkCookie(request?.url?.toString())
-                return super.shouldInterceptRequest(view, request)
-            }
+            dialog.show()
+            webView.loadUrl(targetUrl)
+        } catch (e: Throwable) {
+            Toast.makeText(ctx, "Gagal membuka WebView: ${e.message}", Toast.LENGTH_LONG).show()
         }
-
-        dialog.show()
-        webView.loadUrl(targetUrl)
     }
 }
