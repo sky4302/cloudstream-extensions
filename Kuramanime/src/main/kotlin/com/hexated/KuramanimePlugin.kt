@@ -13,6 +13,10 @@ import com.lagradost.cloudstream3.plugins.Plugin
 class KuramanimePlugin : Plugin() {
     override fun load(context: Context) {
         val provider = Kuramanime()
+        val customUrl = getKey<String>(KuramanimeSettings.KEY_CUSTOM_URL)
+        if (!customUrl.isNullOrBlank()) {
+            provider.mainUrl = customUrl
+        }
         registerMainAPI(provider)
 
         openSettings = { ctx ->

@@ -9,9 +9,7 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
 class Kuramanime : MainAPI() {
-    override var mainUrl: String
-        get() = getKey<String>(KuramanimeSettings.KEY_CUSTOM_URL) ?: KuramanimeSettings.DEFAULT_URL
-        set(value) {}
+    override var mainUrl = KuramanimeSettings.DEFAULT_URL
     override var name = "Kuramanime"
     override val hasMainPage = true
     override var lang = "id"
@@ -20,13 +18,12 @@ class Kuramanime : MainAPI() {
 
     private val authValue = "kJuHHkaqcBFXiGMHQf6bJw8YAyDcwGD8Ur"
 
-    override val mainPage: List<MainPageData>
-        get() = mainPageOf(
-            "$mainUrl/quick/ongoing?order_by=updated&page=" to "Sedang Tayang",
-            "$mainUrl/quick/ongoing?order_by=popular&page=" to "Paling Populer",
-            "$mainUrl/quick/finished?order_by=updated&page=" to "Selesai Tayang",
-            "$mainUrl/quick/movie?order_by=updated&page=" to "Film Layar Lebar"
-        )
+    override val mainPage = mainPageOf(
+        "$mainUrl/quick/ongoing?order_by=updated&page=" to "Sedang Tayang",
+        "$mainUrl/quick/ongoing?order_by=popular&page=" to "Paling Populer",
+        "$mainUrl/quick/finished?order_by=updated&page=" to "Selesai Tayang",
+        "$mainUrl/quick/movie?order_by=updated&page=" to "Film Layar Lebar"
+    )
 
     private val defaultHeaders = mapOf(
         "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
