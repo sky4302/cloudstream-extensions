@@ -1,10 +1,31 @@
 [
     {
-        "iconUrl": "https://www.google.com/s2/favicons?domain=https://z2.idlixku.com&sz=%size%",
-        "fileHash": "sha256-4c125cdf7b69804cb20e3da30e43cad89baa8f5f86c0709eb9e0de2f22807763",
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://drakorid.co&sz=%size%",
+        "fileHash": "sha256-8b50316adece1eff582c87c1e365cc78db0f39a1e0a63b1c80e06521113488ca",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 49849,
+        "fileSize": 35522,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "sky4302"
+        ],
+        "tvTypes": [
+            "AsianDrama",
+            "Movie"
+        ],
+        "version": 4,
+        "internalName": "DrakorID",
+        "description": "DrakorID - Nonton Streaming Drama Korea, Drama Asia & Movie Sub Indo",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/DrakorID.cs3",
+        "name": "DrakorID"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://z2.idlixku.com&sz=%size%",
+        "fileHash": "sha256-e7908299ee4b99b894399485c8825ba1f689daf8d6f35abcae035feb02bc4fcb",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 50795,
         "status": 1,
         "language": "id",
         "authors": [
@@ -14,7 +35,7 @@
             "Movie",
             "TvSeries"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "Idlix",
         "description": "Idlix - Streaming Film & Serial TV Indonesia",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Idlix.cs3",
@@ -22,10 +43,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://m2.kuramanime.ing&sz=%size%",
-        "fileHash": "sha256-50a9e4568e3387f9b3b9a95c8699e0145c7d75a1ea5aa783776dada2ae29a538",
+        "fileHash": "sha256-b80aa027eaa641532975e51c3fbca07bb0ff27fb631e984df5d130bab66eab18",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 25540,
+        "fileSize": 40744,
         "status": 1,
         "language": "id",
         "authors": [
@@ -34,7 +55,7 @@
         "tvTypes": [
             "Anime"
         ],
-        "version": 1,
+        "version": 2,
         "internalName": "Kuramanime",
         "description": "Kuramanime - Nonton Anime Subtitle Indonesia",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Kuramanime.cs3",
@@ -42,10 +63,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://kuronime.sbs&sz=%size%",
-        "fileHash": "sha256-eef5217e3a4e40dd36ea77bcf62dcb629af1a4f5d9157a400c0283994b1dab66",
+        "fileHash": "sha256-e869c3e6d6f9e29ad8f654f17adc12526aa647a62a7441e88730af30738fab60",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 18613,
+        "fileSize": 26348,
         "status": 1,
         "language": "id",
         "authors": [
@@ -63,11 +84,33 @@
         "name": "Kuronime"
     },
     {
-        "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
-        "fileHash": "sha256-4897528ae3e79ece7ac70ac4c6994bced0e60e77e93e8a4e0786ec35b1c0e0cb",
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://tv12.lk21official.cc&sz=%size%",
+        "fileHash": "sha256-abed612ffcd6233e3f05a951ce0912793ae4e2c295e4cd38680c0348427c2aef",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 21419,
+        "fileSize": 41394,
+        "status": 1,
+        "language": "id",
+        "authors": [
+            "sky4302"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "AsianDrama"
+        ],
+        "version": 3,
+        "internalName": "LayarKaca",
+        "description": "LayarKaca21 (LK21) - Nonton Streaming Film & Series Sub Indo",
+        "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/LayarKaca.cs3",
+        "name": "LayarKaca"
+    },
+    {
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://otakudesu.blog&sz=%size%",
+        "fileHash": "sha256-587dd792cf92af64e0f085749ec6f1588e75c95fea4ac1fecc8f843bcf2c9cf5",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
+        "fileSize": 33343,
         "status": 1,
         "language": "id",
         "authors": [
@@ -78,7 +121,7 @@
             "AnimeMovie",
             "OVA"
         ],
-        "version": 1,
+        "version": 3,
         "internalName": "Otakudesu",
         "description": "Otakudesu - Nonton Anime Subtitle Indonesia",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Otakudesu.cs3",
@@ -86,10 +129,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://ww44.pencurimovie.baby&sz=%size%",
-        "fileHash": "sha256-a411e1701be45a19ae3883bc645804e3a8f4d8f6e23808ab8c7d68fef0cb20d7",
+        "fileHash": "sha256-dea1382101a2b4ff22d0543386a9ad8482cac3161bc893ffb079b0f4b26d5ab5",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 14205,
+        "fileSize": 14622,
         "status": 1,
         "language": "ms",
         "authors": [
@@ -108,10 +151,10 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://pencurimoviesubmalay26.site&sz=%size%",
-        "fileHash": "sha256-97b69135a91284af8070c76a4dbf37fdf80947dc65322aeb542e762d9af4083a",
+        "fileHash": "sha256-a26d3befc67e8de6257360e3fa5db891dc2a197b3e75f25779d3a129c3d08377",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 34883,
+        "fileSize": 40070,
         "status": 1,
         "language": "ms",
         "authors": [

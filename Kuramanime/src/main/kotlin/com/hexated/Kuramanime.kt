@@ -1,6 +1,7 @@
 package com.hexated
 
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import org.jsoup.Jsoup
 import com.lagradost.cloudstream3.utils.Qualities
@@ -8,7 +9,9 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
 class Kuramanime : MainAPI() {
-    override var mainUrl = "https://m2.kuramanime.ing"
+    override var mainUrl: String
+        get() = getKey<String>(KuramanimeSettings.KEY_CUSTOM_URL) ?: KuramanimeSettings.DEFAULT_URL
+        set(value) {}
     override var name = "Kuramanime"
     override val hasMainPage = true
     override var lang = "id"
@@ -17,15 +20,34 @@ class Kuramanime : MainAPI() {
 
     private val authValue = "kJuHHkaqcBFXiGMHQf6bJw8YAyDcwGD8Ur"
 
-    override val mainPage = mainPageOf(
-        "$mainUrl/quick/ongoing?order_by=updated&page=" to "Sedang Tayang",
-        "$mainUrl/quick/ongoing?order_by=popular&page=" to "Paling Populer",
-        "$mainUrl/quick/finished?order_by=updated&page=" to "Selesai Tayang",
-        "$mainUrl/quick/movie?order_by=updated&page=" to "Film Layar Lebar"
+    override val mainPage: List<MainPageData>
+        get() = mainPageOf(
+            "$mainUrl/quick/ongoing?order_by=updated&page=" to "Sedang Tayang",
+            "$mainUrl/quick/ongoing?order_by=popular&page=" to "Paling Populer",
+            "$mainUrl/quick/finished?order_by=updated&page=" to "Selesai Tayang",
+            "$mainUrl/quick/movie?order_by=updated&page=" to "Film Layar Lebar"
+        )
+
+    private val defaultHeaders = mapOf(
+        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     )
 
+    private fun getSettingCookies(): Map<String, String> {
+        val cookies = mutableMapOf<String, String>()
+        val genre = getKey<String>(KuramanimeSettings.KEY_GENRE) ?: KuramanimeSettings.DEFAULT_GENRE
+        if (genre != "all") cookies["show_genre"] = genre
+
+        val country = getKey<String>(KuramanimeSettings.KEY_COUNTRY) ?: KuramanimeSettings.DEFAULT_COUNTRY
+        if (country != "all") cookies["show_country"] = country
+
+        val drive = getKey<String>(KuramanimeSettings.KEY_DRIVE_OPTION) ?: KuramanimeSettings.DEFAULT_DRIVE_OPTION
+        cookies["kuramadrive_option"] = drive
+
+        return cookies
+    }
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val doc = app.get(request.data + page).document
+        val doc = app.get(request.data + page, headers = defaultHeaders, cookies = getSettingCookies()).document
 
         val home = doc.select("div.product__item").mapNotNull { item ->
             val a = item.selectFirst("a[href*=/anime/]") ?: return@mapNotNull null
@@ -54,7 +76,7 @@ class Kuramanime : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         val url = "$mainUrl/anime?search=$query"
-        val doc = app.get(url).document
+        val doc = app.get(url, headers = defaultHeaders, cookies = getSettingCookies()).document
 
         return doc.select("div.product__item").mapNotNull { item ->
             val a = item.selectFirst("a[href*=/anime/]") ?: return@mapNotNull null
@@ -80,7 +102,7 @@ class Kuramanime : MainAPI() {
 
     override suspend fun load(url: String): LoadResponse {
         val animeUrl = url.replace(Regex("/episode/.*$"), "")
-        val doc = app.get(animeUrl).document
+        val doc = app.get(animeUrl, headers = defaultHeaders, cookies = getSettingCookies()).document
 
         val title = doc.selectFirst(".anime__details__title h3")?.text()?.trim()
             ?: doc.selectFirst("h3")?.text()?.trim()
@@ -121,7 +143,7 @@ class Kuramanime : MainAPI() {
 
             val nextPagePath = epDoc.selectFirst("a.page__link__episode:has(i.fa-forward)")?.attr("href")
             if (nextPagePath != null) {
-                currentDoc = app.get(fixUrl(nextPagePath)).document
+                currentDoc = app.get(fixUrl(nextPagePath), headers = defaultHeaders, cookies = getSettingCookies()).document
             } else {
                 break
             }
@@ -138,10 +160,6 @@ class Kuramanime : MainAPI() {
         }
     }
 
-    private val defaultHeaders = mapOf(
-        "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    )
-
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -149,8 +167,9 @@ class Kuramanime : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         var found = false
-        val res = app.get(data, headers = defaultHeaders)
-        val cookies = res.cookies
+        val userCookies = getSettingCookies()
+        val res = app.get(data, headers = defaultHeaders, cookies = userCookies)
+        val combinedCookies = userCookies + res.cookies
         val doc = res.document
         val html = doc.outerHtml()
 
@@ -159,7 +178,7 @@ class Kuramanime : MainAPI() {
             val kk = Regex("data-kk=\"([^\"]+)\"").find(html)?.groupValues?.getOrNull(1)
 
             if (!csrf.isNullOrBlank() && !kk.isNullOrBlank()) {
-                val cfg = app.get("$mainUrl/assets/js/$kk.js", headers = defaultHeaders, cookies = cookies).text
+                val cfg = app.get("$mainUrl/assets/js/$kk.js", headers = defaultHeaders, cookies = combinedCookies).text
 
                 fun cfgValue(key: String): String =
                     Regex("$key:\\s*'([^']+)'").find(cfg)?.groupValues?.getOrNull(1) ?: ""
@@ -178,67 +197,80 @@ class Kuramanime : MainAPI() {
                             "X-Request-ID" to requestId,
                             "X-Request-Index" to "0"
                         ),
-                        cookies = cookies
+                        cookies = combinedCookies
                     ).text.trim()
 
                     if (token.isNotBlank()) {
-                        val postDoc = app.post(
-                            "$data?$pageTokenKey=$token&$serverKey=kuramadrive&page=1",
-                            headers = defaultHeaders + mapOf(
-                                "Accept" to "text/html, */*; q=0.01",
-                                "X-Requested-With" to "XMLHttpRequest",
-                                "X-CSRF-TOKEN" to csrf,
-                                "Origin" to mainUrl,
-                                "Referer" to data
-                            ),
-                            cookies = cookies,
-                            data = mapOf("authorization" to authValue)
-                        ).document
-
-                        postDoc.select("video source[src], source[src]").forEach { source ->
-                            val src = source.attr("src").ifBlank { null } ?: return@forEach
-                            val q = source.attr("size").toIntOrNull()
-                            callback(newExtractorLink("KuramaDrive", "KuramaDrive ${q ?: ""}p".trim(), src) {
-                                this.quality = when (q) {
-                                    1080 -> Qualities.P1080.value
-                                    720 -> Qualities.P720.value
-                                    480 -> Qualities.P480.value
-                                    360 -> Qualities.P360.value
-                                    else -> Qualities.Unknown.value
-                                }
-                                this.referer = "$mainUrl/"
-                                this.headers = mapOf(
-                                    "Referer" to "$mainUrl/",
-                                    "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                                )
-                            })
-                            found = true
+                        val serverPref = getKey<String>(KuramanimeSettings.KEY_STREAM_SERVER) ?: KuramanimeSettings.DEFAULT_STREAM_SERVER
+                        val serversToQuery = when (serverPref) {
+                            "kuramadrive" -> listOf("kuramadrive" to "KuramaDrive s1")
+                            "kuramadrive-v2" -> listOf("kuramadrive-v2" to "KuramaDrive s2")
+                            else -> listOf("kuramadrive" to "KuramaDrive s1", "kuramadrive-v2" to "KuramaDrive s2")
                         }
 
-                        var currentQuality = Qualities.Unknown.value
-                        postDoc.selectFirst("#animeDownloadLink")?.children()?.forEach { element ->
-                            if (element.tagName() == "h6") {
-                                val t = element.text()
-                                currentQuality = when {
-                                    t.contains("1080") -> Qualities.P1080.value
-                                    t.contains("720") -> Qualities.P720.value
-                                    t.contains("480") -> Qualities.P480.value
-                                    t.contains("360") -> Qualities.P360.value
-                                    else -> Qualities.Unknown.value
+                        val seenPixelDrain = mutableSetOf<String>()
+
+                        for ((srvKey, srvName) in serversToQuery) {
+                            try {
+                                val postDoc = app.post(
+                                    "$data?$pageTokenKey=$token&$serverKey=$srvKey&page=1",
+                                    headers = defaultHeaders + mapOf(
+                                        "Accept" to "text/html, */*; q=0.01",
+                                        "X-Requested-With" to "XMLHttpRequest",
+                                        "X-CSRF-TOKEN" to csrf,
+                                        "Origin" to mainUrl,
+                                        "Referer" to data
+                                    ),
+                                    cookies = combinedCookies,
+                                    data = mapOf("authorization" to authValue)
+                                ).document
+
+                                postDoc.select("video source[src], source[src]").forEach { source ->
+                                    val src = source.attr("src").ifBlank { null } ?: return@forEach
+                                    val q = source.attr("size").toIntOrNull()
+                                    callback(newExtractorLink(srvName, "$srvName ${q ?: ""}p".trim(), src) {
+                                        this.quality = when (q) {
+                                            1080 -> Qualities.P1080.value
+                                            720 -> Qualities.P720.value
+                                            480 -> Qualities.P480.value
+                                            360 -> Qualities.P360.value
+                                            else -> Qualities.Unknown.value
+                                        }
+                                        this.referer = "$mainUrl/"
+                                        this.headers = mapOf(
+                                            "Referer" to "$mainUrl/",
+                                            "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                                        )
+                                    })
+                                    found = true
                                 }
-                            } else {
-                                element.select("a[href]").forEach { a ->
-                                    val href = a.attr("href").ifBlank { null } ?: return@forEach
-                                    val pdId = Regex("pixeldrain\\.com/[du]/(\\w+)").find(href)?.groupValues?.getOrNull(1)
-                                    if (pdId != null) {
-                                        callback(newExtractorLink("PixelDrain", "PixelDrain", "https://pixeldrain.com/api/file/$pdId") {
-                                            this.quality = currentQuality
-                                            this.referer = "https://pixeldrain.com/"
-                                        })
-                                        found = true
+
+                                var currentQuality = Qualities.Unknown.value
+                                postDoc.selectFirst("#animeDownloadLink")?.children()?.forEach { element ->
+                                    if (element.tagName() == "h6") {
+                                        val t = element.text()
+                                        currentQuality = when {
+                                            t.contains("1080") -> Qualities.P1080.value
+                                            t.contains("720") -> Qualities.P720.value
+                                            t.contains("480") -> Qualities.P480.value
+                                            t.contains("360") -> Qualities.P360.value
+                                            else -> Qualities.Unknown.value
+                                        }
+                                    } else {
+                                        element.select("a[href]").forEach { a ->
+                                            val href = a.attr("href").ifBlank { null } ?: return@forEach
+                                            val pdId = Regex("pixeldrain\\.com/[du]/(\\w+)").find(href)?.groupValues?.getOrNull(1)
+                                            if (pdId != null && seenPixelDrain.add(pdId)) {
+                                                callback(newExtractorLink("PixelDrain", "PixelDrain", "https://pixeldrain.com/api/file/$pdId") {
+                                                    this.quality = currentQuality
+                                                    this.referer = "https://pixeldrain.com/"
+                                                })
+                                                found = true
+                                            }
+                                        }
                                     }
                                 }
-                            }
+                            } catch (_: Exception) {}
                         }
                     }
                 }
