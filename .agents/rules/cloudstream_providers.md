@@ -15,3 +15,10 @@ When developing or debugging CloudStream providers and extractors in this reposi
 
 4. **Version Bumping**:
    - Always increment `version` in `build.gradle.kts` when releasing a provider fix so CloudStream clients detect and apply the update.
+
+5. **Cloudflare WAF / Managed Challenge & Turnstile Handling**:
+   - Streaming sites protected by Cloudflare WAF (`cf-mitigated: challenge`, HTTP 403/503) cannot be fetched via raw OkHttp/NiceHttp requests without valid `cf_clearance`.
+   - Implement a dual-layer resolution pattern:
+     1. **Automatic Background Resolution**: Spawn an offscreen `WebView` on the Android main thread (`Looper.getMainLooper()`) to silently solve non-interactive JS challenges and harvest `cf_clearance` into `CookieManager`.
+     2. **Interactive Turnstile Dialog Fallback**: Provide an in-app `openSettings` option that renders an interactive `AlertDialog` holding a touch-enabled `WebView`, allowing users to manually complete interactive "Verify you are human" checkboxes if background resolution stalls.
+   - **User-Agent Synchronization**: Always capture and save `webView.settings.userAgentString` alongside `cf_clearance`. Subsequent HTTP requests must send this exact `User-Agent` with the `cf_clearance` cookie; sending a mismatched User-Agent causes Cloudflare to immediately reject the session.
