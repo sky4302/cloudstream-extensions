@@ -29,6 +29,17 @@ class NontonAnimeIDPlugin : Plugin() {
             Log.e("NontonAnimeIDPlugin", "Error registering MainAPI: ${e.message}")
         }
 
+        try {
+            registerExtractorAPI(Nontonanimeid())
+            registerExtractorAPI(EmbedKotakAnimeid())
+            registerExtractorAPI(KotakAnimeidCom())
+            registerExtractorAPI(Gdplayer())
+            registerExtractorAPI(Kotaksb())
+            registerExtractorAPI(DailymotionExtractor())
+        } catch (e: Throwable) {
+            Log.e("NontonAnimeIDPlugin", "Error registering Extractors: ${e.message}")
+        }
+
         openSettings = { ctx ->
             try {
                 showMainSettingsDialog(ctx, provider)
@@ -96,11 +107,11 @@ class NontonAnimeIDPlugin : Plugin() {
         val statusMsg = if (!clearance.isNullOrBlank()) {
             "Status: TERHUBUNG / AKTIF\n\nToken cf_clearance: ${clearance.take(15)}...\nUser-Agent: ${ua?.take(30)}..."
         } else {
-            "Status: BELUM TERVERIFIKASI\n\nSilakan pilih 'Verifikasi Cloudflare' jika anime gagal dimuat."
+            "Status: BEBAS CLOUDFLARE (DoH AKTIF)\n\nDomain: ${providerStatusDomain()}\nTurnstile hanya diperlukan jika menggunakan custom mirror yang terproteksi."
         }
 
         AlertDialog.Builder(ctx)
-            .setTitle("Status Cloudflare")
+            .setTitle("Status Cloudflare & Jaringan")
             .setMessage(statusMsg)
             .setPositiveButton("Tutup", null)
             .setNeutralButton("Hapus Cookie") { _, _ ->
@@ -108,6 +119,10 @@ class NontonAnimeIDPlugin : Plugin() {
                 Toast.makeText(ctx, "Cookie Cloudflare berhasil dihapus.", Toast.LENGTH_SHORT).show()
             }
             .show()
+    }
+
+    private fun providerStatusDomain(): String {
+        return getKey<String>(NontonAnimeIDSettings.KEY_CUSTOM_URL) ?: NontonAnimeIDSettings.DEFAULT_URL
     }
 
     private fun showCustomDomainDialog(ctx: Context, provider: NontonAnimeID) {

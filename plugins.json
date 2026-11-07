@@ -106,11 +106,11 @@
         "name": "LayarKaca"
     },
     {
-        "iconUrl": "https://www.google.com/s2/favicons?domain=https://s13.nontonanimeid.boats&sz=%size%",
-        "fileHash": "sha256-7bfb6430622cfdead08528d5c6f21afaae6c61acfef66879f8d2ad5b60847de1",
+        "iconUrl": "https://www.google.com/s2/favicons?domain=https://nontonanime.id&sz=%size%",
+        "fileHash": "sha256-2c84dc53d9b2100e0405ddf7dfb82f41107a56d164dfa8fd3ff6251ca229600d",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 38047,
+        "fileSize": 57159,
         "status": 1,
         "language": "id",
         "authors": [
@@ -121,7 +121,7 @@
             "AnimeMovie",
             "OVA"
         ],
-        "version": 2,
+        "version": 3,
         "internalName": "NontonAnimeID",
         "description": "NontonAnimeID - Nonton Anime Streaming & Download Sub Indo",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/NontonAnimeID.cs3",
