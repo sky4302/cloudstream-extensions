@@ -22,7 +22,6 @@ class KuramanimePlugin : Plugin() {
 
     private fun showMainSettingsDialog(ctx: Context, provider: Kuramanime) {
         val options = arrayOf(
-            "Filter Konten (Hentai / Aman)",
             "Filter Negara (Anime / Donghua)",
             "Opsi Server Kuramadrive (kDrive / kTurbo)",
             "Pilihan Server Streaming (s1 / s2 / Semua)",
@@ -31,39 +30,17 @@ class KuramanimePlugin : Plugin() {
         )
 
         AlertDialog.Builder(ctx)
-            .setTitle("Pengaturan Kuramanime")
+            .setTitle("Pengaturan Kuramanime (Mode Aman Aktif)")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> showGenreDialog(ctx)
-                    1 -> showCountryDialog(ctx)
-                    2 -> showKuramadriveOptionDialog(ctx)
-                    3 -> showStreamServerDialog(ctx)
-                    4 -> showCustomDomainDialog(ctx, provider)
-                    5 -> showResetDialog(ctx, provider)
+                    0 -> showCountryDialog(ctx)
+                    1 -> showKuramadriveOptionDialog(ctx)
+                    2 -> showStreamServerDialog(ctx)
+                    3 -> showCustomDomainDialog(ctx, provider)
+                    4 -> showResetDialog(ctx, provider)
                 }
             }
             .setNegativeButton("Tutup", null)
-            .show()
-    }
-
-    private fun showGenreDialog(ctx: Context) {
-        val items = arrayOf(
-            "Semua Konten (Bawaan)",
-            "Sembunyikan Hentai (Aman)",
-            "Hanya Tampilkan Hentai (18+)"
-        )
-        val values = arrayOf("all", "only_not_hentai", "only_hentai")
-        val current = getKey<String>(KuramanimeSettings.KEY_GENRE) ?: KuramanimeSettings.DEFAULT_GENRE
-        val selectedIndex = values.indexOf(current).coerceAtLeast(0)
-
-        AlertDialog.Builder(ctx)
-            .setTitle("Filter Konten (Genre)")
-            .setSingleChoiceItems(items, selectedIndex) { dialog, which ->
-                setKey(KuramanimeSettings.KEY_GENRE, values[which])
-                Toast.makeText(ctx, "Filter konten: ${items[which]}", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
-            }
-            .setNegativeButton("Batal", null)
             .show()
     }
 
@@ -166,7 +143,6 @@ class KuramanimePlugin : Plugin() {
             .setTitle("Reset Pengaturan")
             .setMessage("Kembalikan semua setelan Kuramanime ke pengaturan awal?")
             .setPositiveButton("Ya, Reset") { _, _ ->
-                setKey(KuramanimeSettings.KEY_GENRE, KuramanimeSettings.DEFAULT_GENRE)
                 setKey(KuramanimeSettings.KEY_COUNTRY, KuramanimeSettings.DEFAULT_COUNTRY)
                 setKey(KuramanimeSettings.KEY_DRIVE_OPTION, KuramanimeSettings.DEFAULT_DRIVE_OPTION)
                 setKey(KuramanimeSettings.KEY_STREAM_SERVER, KuramanimeSettings.DEFAULT_STREAM_SERVER)

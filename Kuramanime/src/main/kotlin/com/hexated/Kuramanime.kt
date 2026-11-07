@@ -34,8 +34,8 @@ class Kuramanime : MainAPI() {
 
     private fun getSettingCookies(): Map<String, String> {
         val cookies = mutableMapOf<String, String>()
-        val genre = getKey<String>(KuramanimeSettings.KEY_GENRE) ?: KuramanimeSettings.DEFAULT_GENRE
-        if (genre != "all") cookies["show_genre"] = genre
+        // Strictly enforce safe mode: always exclude 18+ / Hentai content
+        cookies["show_genre"] = "only_not_hentai"
 
         val country = getKey<String>(KuramanimeSettings.KEY_COUNTRY) ?: KuramanimeSettings.DEFAULT_COUNTRY
         if (country != "all") cookies["show_country"] = country
