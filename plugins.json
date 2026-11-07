@@ -43,19 +43,19 @@
     },
     {
         "iconUrl": "https://www.google.com/s2/favicons?domain=https://m2.kuramanime.ing&sz=%size%",
-        "fileHash": "sha256-dfc8aab4f4234dc65d34ac06a37d1c5af5d522b75acba0fa5b1d9c038cfcc297",
+        "fileHash": "sha256-3b347ef307ac8cfed0b6d447839967ea26d2d7a85bee6928761cb12e7c082944",
         "apiVersion": 1,
         "repositoryUrl": "https://github.com/sky4302/cloudstream-extensions",
-        "fileSize": 39697,
+        "fileSize": 39737,
         "status": 1,
         "language": "id",
         "authors": [
-            "CloudstreamUser"
+            "sky4302"
         ],
         "tvTypes": [
             "Anime"
         ],
-        "version": 3,
+        "version": 4,
         "internalName": "Kuramanime",
         "description": "Kuramanime - Nonton Anime Subtitle Indonesia",
         "url": "https://raw.githubusercontent.com/sky4302/cloudstream-extensions/builds/Kuramanime.cs3",
